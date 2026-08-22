@@ -70,7 +70,7 @@ export default function HomePage() {
           <a href="#katalog" className="btn-redline rl-btn-lg">
             Jelajahi Katalog
           </a>
-          <Link href="/cek-servis" className="btn-ghost rl-btn-lg text-white border-white/20 hover:border-white hover:text-white">
+          <Link href="/cek-servis" className="btn-ghost rl-btn-lg">
             Lacak Servis
           </Link>
         </div>

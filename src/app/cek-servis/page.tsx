@@ -5,27 +5,33 @@ import { fetchCekServis } from '@/lib/api';
 import { ServiceDetail } from '@/types';
 import ServiceTimeline from '@/components/ui/ServiceTimeline';
 import { createGeneralWhatsAppLink } from '@/lib/whatsapp';
-import { AlertCircle, CheckCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle, WifiOff, RefreshCw, MessageCircle } from 'lucide-react';
 
 export default function CekServisPage() {
   const [resi, setResi] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isConnectionError, setIsConnectionError] = useState(false);
   const [data, setData] = useState<ServiceDetail | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!resi.trim()) return;
 
     setLoading(true);
     setError(null);
+    setIsConnectionError(false);
     setData(null);
 
     const res = await fetchCekServis(resi.trim());
     if (res.success && res.data) {
       setData(res.data);
     } else {
-      setError(res.message || 'Nomor resi tidak ditemukan');
+      if (res.isConnectionError) {
+        setIsConnectionError(true);
+      } else {
+        setError(res.message || 'Nomor resi tidak ditemukan dalam sistem.');
+      }
     }
     setLoading(false);
   };
@@ -45,7 +51,7 @@ export default function CekServisPage() {
         </div>
         <h1 className="rl-page-title">Lacak Status Servis</h1>
         <p className="text-neutral-500 text-sm max-w-md mx-auto leading-relaxed">
-          Pantau perkembangan perbaikan perangkat Anda secara real-time.
+          Pantau perkembangan perbaikan laptop dan PC Anda secara real-time langsung dari sistem bengkel Redline.
         </p>
         <div className="rl-ticks max-w-xs mx-auto mt-4"></div>
       </div>
@@ -58,7 +64,11 @@ export default function CekServisPage() {
               type="text"
               name="resi"
               value={resi}
-              onChange={(e) => setResi(e.target.value.toUpperCase())}
+              onChange={(e) => {
+                setResi(e.target.value.toUpperCase());
+                setError(null);
+                setIsConnectionError(false);
+              }}
               placeholder="Contoh: PK-1234-5678"
               required
               className="rl-input text-center rl-mono uppercase tracking-wider font-semibold"
@@ -72,7 +82,7 @@ export default function CekServisPage() {
             </button>
           </form>
 
-          {error && (
+          {error && !isConnectionError && (
             <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-xs font-semibold text-[#b01218] flex items-center justify-center gap-2 max-w-md mx-auto">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{error}</span>
@@ -80,7 +90,41 @@ export default function CekServisPage() {
           )}
         </div>
 
-        {data && (
+        {isConnectionError && (
+          <div className="rl-card p-6 md:p-8 text-center space-y-4 border-red-200 bg-red-50/40" data-reveal>
+            <div className="w-14 h-14 rounded-full bg-red-100 text-[#b01218] flex items-center justify-center mx-auto">
+              <WifiOff className="w-7 h-7" />
+            </div>
+            <div className="space-y-1.5">
+              <h3 className="rl-title-md text-neutral-900">Koneksi Server Backend Terputus</h3>
+              <p className="text-xs text-neutral-600 max-w-md mx-auto leading-relaxed">
+                Pelacakan servis laptop/PC memerlukan koneksi langsung ke server database operasional Redline Komputer. Saat ini server backend sedang offline atau tidak dapat dihubungi.
+              </p>
+            </div>
+            <div className="flex items-center justify-center gap-3 pt-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => handleSubmit()}
+                disabled={loading}
+                className="btn-ghost text-xs font-semibold"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+                <span>Coba Hubungkan Lagi</span>
+              </button>
+              <a
+                href={createGeneralWhatsAppLink()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-redline text-xs font-bold"
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span>Tanya CS via WhatsApp</span>
+              </a>
+            </div>
+          </div>
+        )}
+
+        {data && !isConnectionError && (
           <div className="rl-card p-6 md:p-8 space-y-6" data-reveal>
             <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-neutral-100">
               <div>

@@ -1,6 +1,8 @@
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { fetchPerangkat } from '@/lib/api';
-import { QrCode, Laptop, User, Calendar, Cpu, Wrench } from 'lucide-react';
+import { createGeneralWhatsAppLink } from '@/lib/whatsapp';
+import { QrCode, Laptop, User, Calendar, Cpu, Wrench, WifiOff, MessageCircle } from 'lucide-react';
 
 export default async function PerangkatLifecyclePage({
   params,
@@ -9,6 +11,38 @@ export default async function PerangkatLifecyclePage({
 }) {
   const { kode } = await params;
   const res = await fetchPerangkat(kode);
+
+  if (res.isConnectionError) {
+    return (
+      <div className="max-w-xl mx-auto px-4 py-16 text-center space-y-6">
+        <div className="rl-card p-8 space-y-4 border-red-200 bg-red-50/40">
+          <div className="w-14 h-14 rounded-full bg-red-100 text-[#b01218] flex items-center justify-center mx-auto">
+            <WifiOff className="w-7 h-7" />
+          </div>
+          <div className="space-y-1.5">
+            <h1 className="text-xl font-bold text-neutral-900">Koneksi Server Backend Terputus</h1>
+            <p className="text-xs text-neutral-600 max-w-sm mx-auto leading-relaxed">
+              Gagal memverifikasi riwayat barcode perangkat <span className="rl-mono font-bold text-[#b01218]">{kode}</span> karena tidak dapat terhubung ke database backend Redline.
+            </p>
+          </div>
+          <div className="pt-4 flex items-center justify-center gap-3 flex-wrap">
+            <Link href="/" className="btn-ghost text-xs">
+              &larr; Kembali ke Beranda
+            </Link>
+            <a
+              href={createGeneralWhatsAppLink()}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-redline text-xs font-bold"
+            >
+              <MessageCircle className="w-4 h-4" />
+              <span>Tanya CS WhatsApp</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!res.success || !res.data) {
     notFound();

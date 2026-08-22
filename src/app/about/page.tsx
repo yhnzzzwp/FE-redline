@@ -88,7 +88,7 @@ export default function AboutPage() {
             <div>
               <h3 className="rl-section-title text-sm mb-1">Hubungi Kami</h3>
               <p className="text-neutral-500 text-xs leading-relaxed">
-                WhatsApp: 0812-3456-7890<br />
+                WhatsApp: 0856-4020-3069<br />
                 Email: redlinecomputer@gmail.com<br />
                 Jam Buka: 09.00&ndash;18.00 WIB
               </p>
