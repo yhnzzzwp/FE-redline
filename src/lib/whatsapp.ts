@@ -1,8 +1,8 @@
 export function createWhatsAppLink(productName: string, sku?: string): string {
   const phone = process.env.NEXT_PUBLIC_WA_PHONE || '6281234567890';
   const cleanPhone = phone.replace(/[^0-9]/g, '');
-  const itemInfo = sku ? `${productName} (SKU: ${sku})` : productName;
-  const message = `Halo Redline Komputer, saya tertarik untuk menanyakan info dan pemesanan produk: ${itemInfo}. Apakah barang ini tersedia?`;
+  const skuText = sku ? `\nSKU: ${sku}` : '';
+  const message = `Halo Redline, saya ingin bertanya tentang produk:\n\n*${productName}*${skuText}`;
   return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
 }
 

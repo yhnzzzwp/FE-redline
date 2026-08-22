@@ -1,12 +1,12 @@
 import { ServiceRiwayat } from '@/types';
-import { CheckCircle2, Clock, Wrench, Package, Check } from 'lucide-react';
+import { Check } from 'lucide-react';
 
-const STATUS_STEPS = [
-  { key: 'Diterima', label: 'Unit Diterima', icon: Package },
-  { key: 'Dikerjakan', label: 'Proses Pengerjaan', icon: Wrench },
-  { key: 'Menunggu Sparepart', label: 'Menunggu Sparepart', icon: Clock },
-  { key: 'Selesai', label: 'Servis Selesai', icon: CheckCircle2 },
-  { key: 'Sudah Diambil', label: 'Unit Diambil', icon: Check },
+const SERVICE_STAGES = [
+  'Diterima',
+  'Dikerjakan',
+  'Menunggu Sparepart',
+  'Selesai',
+  'Sudah Diambil',
 ];
 
 export default function ServiceTimeline({
@@ -16,36 +16,34 @@ export default function ServiceTimeline({
   currentStatus: string;
   riwayat?: ServiceRiwayat[];
 }) {
-  const currentIndex = STATUS_STEPS.findIndex((s) => s.key === currentStatus);
+  const currentStepIndex = SERVICE_STAGES.findIndex(
+    (stage) => stage.toLowerCase() === currentStatus.toLowerCase()
+  );
 
   return (
     <div className="space-y-6">
-      <div className="relative flex items-center justify-between">
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-0.5 bg-zinc-800 -z-0" />
-        {STATUS_STEPS.map((step, idx) => {
-          const Icon = step.icon;
-          const isPassed = idx <= currentIndex;
-          const isCurrent = idx === currentIndex;
+      <div className="rl-step-wrap overflow-x-auto" role="list" aria-label="Tahapan servis">
+        {SERVICE_STAGES.map((stage, idx) => {
+          const isPassed = currentStepIndex !== -1 && idx < currentStepIndex;
+          const isCurrent = currentStepIndex !== -1 && idx === currentStepIndex;
 
           return (
-            <div key={step.key} className="flex flex-col items-center gap-2 relative z-10">
-              <div
-                className={`w-10 h-10 rounded-xl flex items-center justify-center border transition-all ${
-                  isCurrent
-                    ? 'bg-rose-600 text-white border-rose-400 shadow-lg shadow-rose-950/60 scale-110'
-                    : isPassed
-                    ? 'bg-zinc-800 text-rose-400 border-rose-500/30'
-                    : 'bg-zinc-900 text-zinc-600 border-zinc-800'
-                }`}
-              >
-                <Icon className="w-5 h-5" />
+            <div
+              key={stage}
+              className={`rl-step ${isPassed ? 'done' : isCurrent ? 'now' : ''}`}
+              role="listitem"
+            >
+              <div className="rl-step-dot">
+                {isPassed ? (
+                  <Check className="w-4 h-4 text-white stroke-[2.5]" />
+                ) : isCurrent ? (
+                  '●'
+                ) : (
+                  idx + 1
+                )}
               </div>
-              <span
-                className={`text-[11px] font-medium text-center hidden sm:block max-w-[80px] ${
-                  isCurrent ? 'text-rose-400 font-bold' : isPassed ? 'text-zinc-300' : 'text-zinc-600'
-                }`}
-              >
-                {step.label}
+              <span className="text-[11px] font-semibold mt-1 tracking-tight">
+                {stage}
               </span>
             </div>
           );
@@ -53,21 +51,22 @@ export default function ServiceTimeline({
       </div>
 
       {riwayat && riwayat.length > 0 && (
-        <div className="mt-8 space-y-3 pt-6 border-t border-white/5">
-          <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-            Riwayat Log Pengerjaan
-          </h4>
-          <div className="space-y-2.5">
-            {riwayat.map((r, i) => (
-              <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-zinc-900/60 border border-white/5 text-xs">
-                <div className="w-2 h-2 rounded-full bg-rose-500 mt-1.5 shrink-0" />
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-zinc-200">{r.status}</span>
-                    <span className="text-[11px] font-mono text-zinc-500">{r.waktu}</span>
-                  </div>
-                  {r.catatan && <p className="text-zinc-400 mt-1">{r.catatan}</p>}
+        <div className="pt-6 border-t border-neutral-200">
+          <h4 className="rl-section-title mb-4">Riwayat Status</h4>
+          <div className="rl-timeline">
+            {riwayat.map((item, i) => (
+              <div key={i} className="rl-timeline-item">
+                <div className="flex justify-between items-baseline mb-1">
+                  <b className="text-[13px] text-neutral-900">{item.status}</b>
+                  <span className="text-neutral-500 rl-mono text-[11.5px] tnum">
+                    {item.waktu}
+                  </span>
                 </div>
+                {item.catatan && (
+                  <div className="text-neutral-500 text-[13px] leading-relaxed">
+                    {item.catatan}
+                  </div>
+                )}
               </div>
             ))}
           </div>

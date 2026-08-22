@@ -1,15 +1,15 @@
-import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import Navbar from '@/components/ui/Navbar';
 import Footer from '@/components/ui/Footer';
-import ClientProviders from '@/components/ClientProviders';
-
-const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Redline Komputer | Hardware & Professional Service',
-  description: 'Katalog hardware komputer premium, rakit PC custom, dan servis laptop profesional bergaransi.',
+  title: 'Hardware & Servis Komputer · Redline Komputer',
+  description: 'Hardware PC, laptop, dan servis komputer terpercaya di Salatiga.',
+};
+
+export const viewport: Viewport = {
+  themeColor: '#0b0d11',
 };
 
 export default function RootLayout({
@@ -18,13 +18,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="id" className="dark">
-      <body className={`${inter.className} min-h-screen flex flex-col justify-between antialiased selection:bg-rose-600 selection:text-white`}>
-        <ClientProviders>
-          <Navbar />
-          <main className="flex-grow">{children}</main>
-          <Footer />
-        </ClientProviders>
+    <html lang="id">
+      <body className="flex flex-col min-h-screen">
+        <a href="#konten" className="rl-skip-link">Lewati ke konten utama</a>
+        <Navbar />
+        <main id="konten" className="flex-1">
+          {children}
+        </main>
+        <Footer />
       </body>
     </html>
   );
