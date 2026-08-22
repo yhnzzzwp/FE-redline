@@ -2,20 +2,27 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { fetchKatalog, fetchKategori, fetchPromos } from '@/lib/api';
+import {
+  dummyKategori,
+  dummyProduk,
+  dummyPromos,
+  fetchKatalog,
+  fetchKategori,
+  fetchPromos,
+} from '@/lib/api';
 import { Kategori, Produk, Promo } from '@/types';
 import ProductCard from '@/components/ui/ProductCard';
 import PromoCarousel from '@/components/ui/PromoCarousel';
 import { Filter, ChevronDown } from 'lucide-react';
 
 export default function HomePage() {
-  const [products, setProducts] = useState<Produk[]>([]);
-  const [categories, setCategories] = useState<Kategori[]>([]);
-  const [promos, setPromos] = useState<Promo[]>([]);
+  const [products, setProducts] = useState<Produk[]>(dummyProduk);
+  const [categories, setCategories] = useState<Kategori[]>(dummyKategori);
+  const [promos, setPromos] = useState<Promo[]>(dummyPromos);
   const [selectedCategory, setSelectedCategory] = useState<number | undefined>();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterOpen, setFilterOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     async function initData() {
@@ -23,28 +30,42 @@ export default function HomePage() {
         fetchKategori(),
         fetchPromos(),
       ]);
-      setCategories(categoriesData);
-      setPromos(promosData);
+      if (categoriesData.length > 0) setCategories(categoriesData);
+      if (promosData.length > 0) setPromos(promosData);
     }
     initData();
   }, []);
 
   useEffect(() => {
+    let active = true;
+
     async function loadProducts() {
-      setLoading(true);
       const res = await fetchKatalog({
         kategori: selectedCategory,
         cari: searchTerm || undefined,
       });
-      setProducts(res.data);
-      setLoading(false);
+      if (active) {
+        setProducts(res.data);
+        setLoading(false);
+      }
     }
 
-    const timer = setTimeout(() => {
+    if (searchTerm) {
+      setLoading(true);
+      const timer = setTimeout(() => {
+        loadProducts();
+      }, 200);
+      return () => {
+        active = false;
+        clearTimeout(timer);
+      };
+    } else {
       loadProducts();
-    }, 250);
+    }
 
-    return () => clearTimeout(timer);
+    return () => {
+      active = false;
+    };
   }, [selectedCategory, searchTerm]);
 
   const handleResetFilter = () => {

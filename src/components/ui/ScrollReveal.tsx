@@ -10,11 +10,14 @@ export default function ScrollReveal() {
     const isReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     document.documentElement.classList.add('reveal-ready');
 
-    const elements = document.querySelectorAll<HTMLElement>('[data-reveal]');
-    if (!elements.length) return;
+    const revealAll = () => {
+      document.querySelectorAll<HTMLElement>('[data-reveal]').forEach((el) => {
+        el.classList.add('is-visible');
+      });
+    };
 
     if (isReduced || !('IntersectionObserver' in window)) {
-      elements.forEach((el) => el.classList.add('is-visible'));
+      revealAll();
       return;
     }
 
@@ -28,15 +31,37 @@ export default function ScrollReveal() {
         });
       },
       {
-        threshold: 0.08,
-        rootMargin: '9999px 0px -40px 0px',
+        threshold: 0.04,
+        rootMargin: '9999px 0px -20px 0px',
       }
     );
 
-    elements.forEach((el) => observer.observe(el));
+    const observeUnobserved = () => {
+      const elements = document.querySelectorAll<HTMLElement>('[data-reveal]:not(.is-visible)');
+      elements.forEach((el) => {
+        const rect = el.getBoundingClientRect();
+        if (rect.top < window.innerHeight && rect.bottom > 0) {
+          el.classList.add('is-visible');
+        } else {
+          observer.observe(el);
+        }
+      });
+    };
+
+    observeUnobserved();
+
+    const mutationObserver = new MutationObserver(() => {
+      observeUnobserved();
+    });
+
+    mutationObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
 
     return () => {
       observer.disconnect();
+      mutationObserver.disconnect();
     };
   }, [pathname]);
 

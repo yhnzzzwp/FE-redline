@@ -2,7 +2,7 @@ import { Kategori, PerangkatDetail, Produk, Promo, ServiceDetail } from '@/types
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1';
 
-const dummyKategori: Kategori[] = [
+export const dummyKategori: Kategori[] = [
   { id: 1, nama_kategori: 'Prosesor (CPU)', deskripsi_kategori: 'Prosesor Intel & AMD Ryzen', produk_count: 2 },
   { id: 2, nama_kategori: 'Kartu Grafis (VGA)', deskripsi_kategori: 'GPU NVIDIA GeForce & AMD Radeon', produk_count: 2 },
   { id: 3, nama_kategori: 'Motherboard', deskripsi_kategori: 'Motherboard Intel LGA1700 & AMD AM5', produk_count: 1 },
@@ -13,7 +13,7 @@ const dummyKategori: Kategori[] = [
   { id: 8, nama_kategori: 'PC Rakitan', deskripsi_kategori: 'Paket PC Rakitan siap pakai bergaransi toko', produk_count: 1 },
 ];
 
-const dummyPromos: Promo[] = [
+export const dummyPromos: Promo[] = [
   {
     id: 1,
     nama_promo: 'Promo Rakit PC & Servis Spesial',
@@ -35,7 +35,7 @@ const dummyPromos: Promo[] = [
   },
 ];
 
-const dummyProduk: Produk[] = [
+export const dummyProduk: Produk[] = [
   {
     id: 1,
     kategori_id: 2,
