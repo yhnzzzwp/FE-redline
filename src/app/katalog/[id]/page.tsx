@@ -35,7 +35,7 @@ export default async function ProductDetailPage({
         <span>Kembali ke Katalog</span>
       </Link>
 
-      <div className="rl-card p-6 md:p-8 space-y-6">
+      <div className="rl-card p-6 md:p-8 space-y-6" data-reveal>
         <div>
           <div className="text-xs text-neutral-500 mb-2">
             {produk.kategori?.nama_kategori || 'Umum'} &middot; SKU:{' '}
@@ -91,7 +91,7 @@ export default async function ProductDetailPage({
         </div>
       </div>
 
-      <div className="rl-card p-5">
+      <div className="rl-card p-5" data-reveal>
         <div className="rl-trust justify-around">
           {trustItems.map((t) => {
             const Icon = t.icon;
@@ -110,11 +110,17 @@ export default async function ProductDetailPage({
       </div>
 
       {terkait.length > 0 && (
-        <section className="space-y-4 pt-6">
+        <section className="space-y-4 pt-6" data-reveal>
           <h2 className="rl-title-lg">Produk Lainnya</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {terkait.slice(0, 6).map((p) => (
-              <ProductCard key={p.id} produk={p} />
+            {terkait.slice(0, 6).map((p, index) => (
+              <div
+                key={p.id}
+                data-reveal
+                style={{ '--reveal-d': `${(index % 3) * 80}ms` } as React.CSSProperties}
+              >
+                <ProductCard produk={p} />
+              </div>
             ))}
           </div>
         </section>

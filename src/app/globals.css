@@ -927,3 +927,79 @@ body {
     padding: 40px 16px 12px;
   }
 }
+
+@keyframes rl-rise {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rl-hero-title {
+  animation: rl-rise 0.8s var(--ease) both;
+}
+
+.rl-hero-desc {
+  animation: rl-rise 0.8s var(--ease) 0.12s both;
+}
+
+.rl-hero-actions {
+  animation: rl-rise 0.8s var(--ease) 0.24s both;
+}
+
+.rl-hero-stats {
+  animation: rl-rise 0.8s var(--ease) 0.36s both;
+}
+
+a.rl-card,
+.rl-product-card {
+  transition: transform 0.3s var(--ease), box-shadow 0.3s var(--ease), border-color 0.3s var(--ease);
+}
+
+a.rl-card:hover,
+.rl-product-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 18px 44px rgba(13, 16, 22, 0.14);
+}
+
+.reveal-ready [data-reveal] {
+  opacity: 0;
+  transform: translateY(26px);
+  transition: opacity 0.7s var(--ease), transform 0.7s var(--ease);
+  transition-delay: var(--reveal-d, 0s);
+  will-change: opacity, transform;
+}
+
+.reveal-ready [data-reveal].is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+  .rl-hero::before {
+    animation: none;
+  }
+  .rl-hero-title,
+  .rl-hero-desc,
+  .rl-hero-actions,
+  .rl-hero-stats {
+    animation: none;
+  }
+  .reveal-ready [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}
+

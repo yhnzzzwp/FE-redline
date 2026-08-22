@@ -5,7 +5,7 @@ import { MapPin, MessageCircle } from 'lucide-react';
 export default function AboutPage() {
   return (
     <div className="pb-16">
-      <div className="rl-public-header">
+      <div className="rl-public-header" data-reveal>
         <div className="rl-kicker mb-2">
           Di balik <b>garis merah</b>
         </div>
@@ -17,7 +17,7 @@ export default function AboutPage() {
       </div>
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
-        <div className="rl-card p-6 md:p-8 space-y-6">
+        <div className="rl-card p-6 md:p-8 space-y-6" data-reveal>
           <div>
             <div className="rl-kicker mb-2">
               Visi <b>&amp;</b> Misi
@@ -57,7 +57,7 @@ export default function AboutPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="rl-card p-6 text-center space-y-3 flex flex-col items-center justify-between">
+          <div className="rl-card p-6 text-center space-y-3 flex flex-col items-center justify-between" data-reveal>
             <span className="rl-feature-ico">
               <MapPin className="w-5 h-5 text-[#b01218]" />
             </span>
@@ -77,7 +77,11 @@ export default function AboutPage() {
             </a>
           </div>
 
-          <div className="rl-card p-6 text-center space-y-3 flex flex-col items-center justify-between">
+          <div
+            className="rl-card p-6 text-center space-y-3 flex flex-col items-center justify-between"
+            data-reveal
+            style={{ '--reveal-d': '90ms' } as React.CSSProperties}
+          >
             <span className="rl-feature-ico">
               <MessageCircle className="w-5 h-5 text-[#b01218]" />
             </span>
@@ -100,7 +104,7 @@ export default function AboutPage() {
           </div>
         </div>
 
-        <div className="rl-card p-6 md:p-8 text-center space-y-3">
+        <div className="rl-card p-6 md:p-8 text-center space-y-3" data-reveal>
           <div className="rl-kicker mb-1">
             Segera <b>hadir</b>
           </div>

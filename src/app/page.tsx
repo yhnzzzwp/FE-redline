@@ -66,7 +66,7 @@ export default function HomePage() {
           Hardware pilihan yang diuji satu per satu, rakitan presisi, dan servis dengan estimasi biaya di muka. Dari workstation harian sampai mesin gaming yang digeber sampai garis merah.
         </p>
 
-        <div className="flex gap-3 justify-center mt-6 flex-wrap px-3">
+        <div className="flex gap-3 justify-center mt-6 flex-wrap px-3 rl-hero-actions">
           <a href="#katalog" className="btn-redline rl-btn-lg">
             Jelajahi Katalog
           </a>
@@ -98,9 +98,13 @@ export default function HomePage() {
       </section>
 
       <section id="katalog" className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-16 space-y-8">
-        {promos.length > 0 && <PromoCarousel promos={promos} />}
+        {promos.length > 0 && (
+          <div data-reveal>
+            <PromoCarousel promos={promos} />
+          </div>
+        )}
 
-        <div className="text-center mb-6">
+        <div className="text-center mb-6" data-reveal>
           <div className="rl-kicker mb-1">
             Spec-sheet <b>lengkap</b>
           </div>
@@ -111,7 +115,7 @@ export default function HomePage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          <div className="lg:col-span-3">
+          <div className="lg:col-span-3" data-reveal>
             <div className="rl-card p-4 lg:sticky lg:top-24">
               <button
                 type="button"
@@ -197,12 +201,18 @@ export default function HomePage() {
               </div>
             ) : products.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                {products.map((p) => (
-                  <ProductCard key={p.id} produk={p} />
+                {products.map((p, index) => (
+                  <div
+                    key={p.id}
+                    data-reveal
+                    style={{ '--reveal-d': `${(index % 3) * 80}ms` } as React.CSSProperties}
+                  >
+                    <ProductCard produk={p} />
+                  </div>
                 ))}
               </div>
             ) : (
-              <div className="rl-card p-12 text-center text-neutral-500 space-y-3">
+              <div className="rl-card p-12 text-center text-neutral-500 space-y-3" data-reveal>
                 <h4 className="rl-title-md text-neutral-900 mb-1">
                   Produk Tidak Ditemukan
                 </h4>
