@@ -1,88 +1,75 @@
-import { OfflineTransaction } from '@/types';
+import { db, type TransaksiPending, type ProdukCache } from './db';
 
-const DB_NAME = 'RedlinePosDB';
-const DB_VERSION = 1;
-const STORE_NAME = 'offline_transactions';
+// ─── Transaksi Pending ─────────────────────────────────────────────
 
-function openDatabase(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    if (typeof window === 'undefined' || !window.indexedDB) {
-      reject(new Error('IndexedDB not supported'));
-      return;
-    }
+/** Simpan transaksi baru ke IndexedDB */
+export async function savePendingTransaction(tx: TransaksiPending): Promise<void> {
+  await db.transaksiPending.put(tx);
+}
 
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
+/** Ambil semua transaksi yang belum di-sync */
+export async function getPendingTransactions(): Promise<TransaksiPending[]> {
+  return db.transaksiPending.where('status').equals('pending').toArray();
+}
 
-    request.onupgradeneeded = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: 'local_id' });
-      }
-    };
+/** Ambil semua transaksi (semua status) */
+export async function getAllTransactions(): Promise<TransaksiPending[]> {
+  return db.transaksiPending.orderBy('createdAt').reverse().toArray();
+}
 
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+/** Tandai transaksi sebagai synced, simpan kode_nota dari server */
+export async function markAsSynced(localId: string, kodeNota?: string, serverId?: number): Promise<void> {
+  await db.transaksiPending.update(localId, {
+    status: 'synced',
+    kode_nota: kodeNota,
+    server_id: serverId,
   });
 }
 
-export async function saveOfflineTransaction(tx: OfflineTransaction): Promise<void> {
-  const db = await openDatabase();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, 'readwrite');
-    const store = transaction.objectStore(STORE_NAME);
-    const request = store.put(tx);
-
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
+/** Tandai transaksi sebagai conflict */
+export async function markAsConflict(localId: string, reason: string): Promise<void> {
+  await db.transaksiPending.update(localId, {
+    status: 'conflict',
+    conflict_reason: reason,
   });
 }
 
-export async function getOfflineTransactions(): Promise<OfflineTransaction[]> {
-  const db = await openDatabase();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, 'readonly');
-    const store = transaction.objectStore(STORE_NAME);
-    const request = store.getAll();
-
-    request.onsuccess = () => resolve(request.result || []);
-    request.onerror = () => reject(request.error);
-  });
-}
-
-export async function markTransactionsSynced(localIds: string[]): Promise<void> {
-  const db = await openDatabase();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, 'readwrite');
-    const store = transaction.objectStore(STORE_NAME);
-
-    localIds.forEach((id) => {
-      const getReq = store.get(id);
-      getReq.onsuccess = () => {
-        if (getReq.result) {
-          const item = getReq.result;
-          item.is_synced = true;
-          store.put(item);
-        }
-      };
-    });
-
-    transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(transaction.error);
-  });
-}
-
+/** Hapus transaksi yang sudah synced */
 export async function clearSyncedTransactions(): Promise<void> {
-  const db = await openDatabase();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, 'readwrite');
-    const store = transaction.objectStore(STORE_NAME);
-    const request = store.getAll();
+  await db.transaksiPending.where('status').equals('synced').delete();
+}
 
-    request.onsuccess = () => {
-      const items: OfflineTransaction[] = request.result || [];
-      items.filter((i) => i.is_synced).forEach((i) => store.delete(i.local_id));
-      resolve();
-    };
-    request.onerror = () => reject(request.error);
-  });
+/** Hitung jumlah transaksi pending */
+export async function countPending(): Promise<number> {
+  return db.transaksiPending.where('status').equals('pending').count();
+}
+
+/** Hitung jumlah transaksi conflict */
+export async function countConflicts(): Promise<number> {
+  return db.transaksiPending.where('status').equals('conflict').count();
+}
+
+// ─── Produk Cache ──────────────────────────────────────────────────
+
+/** Simpan/update daftar produk ke cache lokal */
+export async function cacheProdukList(products: ProdukCache[]): Promise<void> {
+  await db.produkCache.bulkPut(products);
+}
+
+/** Ambil semua produk dari cache lokal */
+export async function getCachedProduk(): Promise<ProdukCache[]> {
+  return db.produkCache.toArray();
+}
+
+/** Cari produk dari cache lokal */
+export async function searchCachedProduk(query: string): Promise<ProdukCache[]> {
+  const q = query.toLowerCase();
+  return db.produkCache
+    .filter((p) => p.nama.toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q))
+    .toArray();
+}
+
+/** Hapus semua cache produk (untuk force refresh) */
+export async function clearProdukCache(): Promise<void> {
+  await db.produkCache.clear();
 }
