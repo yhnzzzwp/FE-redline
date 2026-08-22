@@ -203,7 +203,6 @@ export default function PosPage() {
   const total = subtotal;
   const kembalian = Math.max(0, bayarNominal - total);
 
-  // ─── Checkout: cabang logic online vs offline (#4) ─────────────
   async function handleCheckout() {
     if (cart.length === 0) return;
     if (metodeBayar === 'Tunai' && bayarNominal < total) {
@@ -238,11 +237,9 @@ export default function PosPage() {
       nomor_hp_pembeli: nomorHp || undefined,
     };
 
-    // Cek koneksi aktual sebelum memutuskan jalur
     const currentlyOnline = await checkNow();
 
     if (currentlyOnline) {
-      // ──── Jalur online: kirim langsung ke server ────
       try {
         const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1';
         const res = await fetch(`${API_BASE}/pos/checkout`, {
