@@ -6,13 +6,14 @@ import {
   ShoppingBag,
   Plus,
   Trash2,
-  Printer,
-  MessageCircle,
+  Download,
+  Share2,
   CheckCircle,
   Search,
   Receipt,
   X,
 } from 'lucide-react';
+import { downloadReceiptPDF, shareReceiptPDFToWhatsApp, type ReceiptData } from '@/lib/pdfReceipt';
 
 interface CartLine {
   id: string;
@@ -21,20 +22,6 @@ interface CartLine {
   harga: number;
   jumlah: number;
   tipe: 'Produk' | 'Servis';
-}
-
-interface CompletedNota {
-  kode_nota: string;
-  tanggal: string;
-  nama_pembeli: string;
-  nomor_hp: string;
-  items: CartLine[];
-  subtotal: number;
-  total: number;
-  bayar: number;
-  kembalian: number;
-  metode_bayar: string;
-  kasir: string;
 }
 
 function createReceiptNumber(): string {
@@ -52,7 +39,7 @@ export default function AdminPosPage() {
   const [nomorHp, setNomorHp] = useState('');
   const [metodeBayar, setMetodeBayar] = useState('Tunai');
   const [bayarNominal, setBayarNominal] = useState<number>(0);
-  const [lastNota, setLastNota] = useState<CompletedNota | null>(null);
+  const [lastNota, setLastNota] = useState<ReceiptData | null>(null);
 
   // Manual Custom Item inputs
   const [customNama, setCustomNama] = useState('');
@@ -63,7 +50,8 @@ export default function AdminPosPage() {
   const filteredProducts = produkData.filter(
     (p) =>
       p.nama_produk.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.sku.toLowerCase().includes(searchTerm.toLowerCase())
+      p.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.kategori.nama_kategori.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const addCustomItem = (e: React.FormEvent) => {
@@ -111,18 +99,9 @@ export default function AdminPosPage() {
     }
   };
 
-  const updateQty = (id: string, delta: number) => {
-    setCart(
-      cart
-        .map((item) => {
-          if (item.id === id) {
-            const next = item.jumlah + delta;
-            return next > 0 ? { ...item, jumlah: next } : null;
-          }
-          return item;
-        })
-        .filter(Boolean) as CartLine[]
-    );
+  const updateQtyDirect = (id: string, newQty: number) => {
+    if (isNaN(newQty) || newQty < 1) return;
+    setCart(cart.map((item) => (item.id === id ? { ...item, jumlah: newQty } : item)));
   };
 
   const updatePrice = (id: string, newPrice: number) => {
@@ -146,7 +125,7 @@ export default function AdminPosPage() {
     }
 
     const kode_nota = createReceiptNumber();
-    const completed: CompletedNota = {
+    const completed: ReceiptData = {
       kode_nota,
       tanggal: getFormattedDate(),
       nama_pembeli: namaPembeli || 'Umum',
@@ -165,39 +144,14 @@ export default function AdminPosPage() {
     setBayarNominal(0);
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handleDownloadPDF = () => {
+    if (!lastNota) return;
+    downloadReceiptPDF(lastNota);
   };
 
-  const createWhatsAppReceiptLink = (nota: CompletedNota) => {
-    const phone = (nota.nomor_hp || '').replace(/^0/, '62').replace(/\D/g, '');
-    let text = `*NOTA PEMBELIAN REDLINE KOMPUTER*\n`;
-    text += `===============================\n`;
-    text += `No. Nota : #${nota.kode_nota}\n`;
-    text += `Tanggal  : ${nota.tanggal}\n`;
-    text += `Customer : ${nota.nama_pembeli}\n`;
-    text += `Kasir    : ${nota.kasir}\n`;
-    text += `-------------------------------\n`;
-    nota.items.forEach((item, idx) => {
-      text += `${idx + 1}. ${item.nama_item}\n`;
-      text += `   ${item.jumlah}x @ Rp ${item.harga.toLocaleString('id-ID')} = Rp ${(item.jumlah * item.harga).toLocaleString('id-ID')}\n`;
-    });
-    text += `-------------------------------\n`;
-    text += `*TOTAL TAGIHAN : Rp ${nota.total.toLocaleString('id-ID')}*\n`;
-    text += `Metode Bayar  : ${nota.metode_bayar}\n`;
-    if (nota.metode_bayar === 'Tunai') {
-      text += `Bayar         : Rp ${nota.bayar.toLocaleString('id-ID')}\n`;
-      text += `Kembalian     : Rp ${nota.kembalian.toLocaleString('id-ID')}\n`;
-    }
-    text += `===============================\n`;
-    text += `Terima kasih telah berbelanja di Redline Komputer Salatiga!\n`;
-    text += `Garansi & Servis: 085640203069`;
-
-    const encoded = encodeURIComponent(text);
-    if (phone.length >= 8) {
-      return `https://wa.me/${phone}?text=${encoded}`;
-    }
-    return `https://wa.me/?text=${encoded}`;
+  const handleShareWhatsAppPDF = async () => {
+    if (!lastNota) return;
+    await shareReceiptPDFToWhatsApp(lastNota);
   };
 
   return (
@@ -206,7 +160,7 @@ export default function AdminPosPage() {
         <div>
           <h1 className="rl-page-title mb-1">Kasir (POS)</h1>
           <p className="rl-page-desc mb-0">
-            Pencatatan transaksi kasir dengan fleksibilitas input harga mandiri, cetak nota, &amp; kirim WhatsApp.
+            Pencatatan transaksi kasir dengan fleksibilitas input harga mandiri, cetak nota PDF, &amp; kirim WhatsApp.
           </p>
         </div>
       </div>
@@ -219,7 +173,7 @@ export default function AdminPosPage() {
             <div className="flex items-center gap-2 pb-2 border-b border-neutral-100">
               <Plus className="w-4 h-4 text-[#de1f26]" />
               <h2 className="text-sm font-bold text-neutral-900 uppercase tracking-wider">
-                Input Item / Jasa Mandiri (Harga Kustom)
+                Input Harga
               </h2>
             </div>
 
@@ -231,7 +185,7 @@ export default function AdminPosPage() {
                   </label>
                   <input
                     type="text"
-                    placeholder="Misal: Jasa Rakit PC / Thermal Paste..."
+                    placeholder="barang / jasa"
                     value={customNama}
                     onChange={(e) => setCustomNama(e.target.value)}
                     required
@@ -286,7 +240,7 @@ export default function AdminPosPage() {
                   className="btn-redline py-2 px-4 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>+ Tambahkan ke Keranjang</span>
+                  <span>Tambahkan ke Keranjang</span>
                 </button>
               </div>
             </form>
@@ -294,22 +248,31 @@ export default function AdminPosPage() {
 
           {/* Master Katalog */}
           <div className="rl-card p-5 space-y-4">
-            <div className="flex items-center justify-between gap-4 pb-2 border-b border-neutral-100">
+            <div className="flex items-center justify-between gap-4 pb-2 border-b border-neutral-100 flex-wrap">
               <div className="flex items-center gap-2">
                 <ShoppingBag className="w-4 h-4 text-[#de1f26]" />
                 <h2 className="text-sm font-bold text-neutral-900 uppercase tracking-wider">
                   Pilih dari Master Katalog
                 </h2>
               </div>
-              <div className="relative w-56">
-                <Search className="w-3.5 h-3.5 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <div className="relative w-full sm:w-64">
+                <Search className="w-4 h-4 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
-                  placeholder="Cari produk / SKU..."
+                  placeholder="Cari produk / SKU / kategori..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="rl-input pl-8 py-1.5 text-xs w-full"
+                  className="w-full pl-9 pr-8 py-2 rounded-xl bg-neutral-50 hover:bg-white focus:bg-white border border-neutral-200 focus:border-[#de1f26] focus:ring-2 focus:ring-red-100 text-xs text-neutral-800 transition-all outline-none"
                 />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 border-0 bg-transparent cursor-pointer p-0"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             </div>
 
@@ -336,7 +299,7 @@ export default function AdminPosPage() {
                     onClick={() => addFromCatalog(p)}
                     className="w-full py-1.5 px-3 rounded-lg bg-neutral-100 hover:bg-[#de1f26] hover:text-white text-neutral-800 text-xs font-bold transition-all text-center border-0 cursor-pointer"
                   >
-                    + Masukkan &amp; Set Harga
+                    Tambahkan
                   </button>
                 </div>
               ))}
@@ -382,6 +345,7 @@ export default function AdminPosPage() {
                         type="button"
                         onClick={() => removeItem(item.id)}
                         className="p-1 text-neutral-400 hover:text-red-600 bg-transparent border-0 cursor-pointer"
+                        title="Hapus Item"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -399,22 +363,15 @@ export default function AdminPosPage() {
                         />
                       </div>
 
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => updateQty(item.id, -1)}
-                          className="w-5 h-5 rounded bg-neutral-200 hover:bg-neutral-300 font-bold text-xs flex items-center justify-center border-0 cursor-pointer"
-                        >
-                          -
-                        </button>
-                        <span className="w-5 text-center font-bold rl-mono">{item.jumlah}</span>
-                        <button
-                          type="button"
-                          onClick={() => updateQty(item.id, 1)}
-                          className="w-5 h-5 rounded bg-neutral-200 hover:bg-neutral-300 font-bold text-xs flex items-center justify-center border-0 cursor-pointer"
-                        >
-                          +
-                        </button>
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-[10px] text-neutral-500">Qty:</label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={item.jumlah}
+                          onChange={(e) => updateQtyDirect(item.id, Number(e.target.value))}
+                          className="rl-input text-xs py-0.5 px-1.5 w-14 rl-mono font-semibold text-center"
+                        />
                       </div>
 
                       <span className="font-bold text-neutral-900 rl-mono">
@@ -522,19 +479,11 @@ export default function AdminPosPage() {
         </div>
       </div>
 
-      {/* Modal Popup Nota / Struk PDF & WA */}
+      {/* Modal Popup Nota / PDF & Kirim WA PDF */}
       {lastNota && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white border border-neutral-200 p-6 space-y-5 shadow-2xl print:shadow-none print:border-0 print:p-0">
-            <style>{`
-              @media print {
-                body > *:not(.fixed) { display: none !important; }
-                .fixed { position: static !important; background: white !important; }
-                .print\\:hidden { display: none !important; }
-              }
-            `}</style>
-
-            <div className="flex items-center justify-between print:hidden">
+          <div className="w-full max-w-md rounded-2xl bg-white border border-neutral-200 p-6 space-y-5 shadow-2xl">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-emerald-600 font-bold text-sm">
                 <CheckCircle className="w-5 h-5" />
                 <span>Transaksi Berhasil</span>
@@ -611,32 +560,31 @@ export default function AdminPosPage() {
               </div>
             </div>
 
-            {/* Action Buttons: Print PDF & Send WA */}
-            <div className="grid grid-cols-2 gap-2 print:hidden">
+            {/* Action Buttons: Download PDF & Kirim PDF via WhatsApp */}
+            <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={handlePrint}
-                className="py-2.5 px-3 rounded-lg bg-neutral-800 hover:bg-neutral-900 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+                onClick={handleDownloadPDF}
+                className="py-2.5 px-3 rounded-lg bg-neutral-800 hover:bg-neutral-900 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-sm transition-all"
               >
-                <Printer className="w-4 h-4" />
-                <span>Cetak Nota / PDF</span>
+                <Download className="w-4 h-4" />
+                <span>Unduh PDF</span>
               </button>
 
-              <a
-                href={createWhatsAppReceiptLink(lastNota)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="py-2.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 no-underline"
+              <button
+                type="button"
+                onClick={handleShareWhatsAppPDF}
+                className="py-2.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-sm transition-all border-0"
               >
-                <MessageCircle className="w-4 h-4" />
-                <span>Kirim via WA</span>
-              </a>
+                <Share2 className="w-4 h-4" />
+                <span>Kirim PDF ke WA</span>
+              </button>
             </div>
 
             <button
               type="button"
               onClick={() => setLastNota(null)}
-              className="w-full btn-ghost text-xs font-semibold py-2 print:hidden"
+              className="w-full btn-ghost text-xs font-semibold py-2"
             >
               Tutup &amp; Transaksi Baru
             </button>

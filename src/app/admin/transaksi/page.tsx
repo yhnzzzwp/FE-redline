@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import transaksiData from '@/data/transaksi.json';
-import { Search, Download, Receipt, MessageCircle, X, Printer } from 'lucide-react';
+import { Search, Download, Receipt, Share2, X } from 'lucide-react';
+import { downloadReceiptPDF, shareReceiptPDFToWhatsApp, type ReceiptData } from '@/lib/pdfReceipt';
 
 interface TransaksiItem {
   id: number;
@@ -84,32 +85,24 @@ export default function AdminTransaksiPage() {
     link.click();
   };
 
-  const createWhatsAppLink = (t: TransaksiRecord) => {
-    const phone = (t.nomor_hp_pembeli || '').replace(/^0/, '62').replace(/\D/g, '');
-    let text = `*NOTA PEMBELIAN REDLINE KOMPUTER*\n`;
-    text += `===============================\n`;
-    text += `No. Nota : #${t.kode_nota}\n`;
-    text += `Tanggal  : ${t.created_at}\n`;
-    text += `Customer : ${t.nama_pembeli}\n`;
-    text += `Kasir    : ${t.pegawai.nama_pegawai}\n`;
-    text += `-------------------------------\n`;
-    t.items.forEach((item, idx) => {
-      text += `${idx + 1}. ${item.nama_item}\n`;
-      text += `   ${item.jumlah}x @ Rp ${item.harga.toLocaleString('id-ID')} = Rp ${(item.jumlah * item.harga).toLocaleString('id-ID')}\n`;
-    });
-    text += `-------------------------------\n`;
-    text += `*TOTAL TAGIHAN : Rp ${t.total.toLocaleString('id-ID')}*\n`;
-    text += `Metode Bayar  : ${t.metode_bayar}\n`;
-    text += `Status        : ${t.status}\n`;
-    text += `===============================\n`;
-    text += `Terima kasih atas kunjungan Anda di Redline Komputer!`;
-
-    const encoded = encodeURIComponent(text);
-    if (phone.length >= 8) {
-      return `https://wa.me/${phone}?text=${encoded}`;
-    }
-    return `https://wa.me/?text=${encoded}`;
-  };
+  const getReceiptData = (t: TransaksiRecord): ReceiptData => ({
+    kode_nota: t.kode_nota,
+    tanggal: t.created_at,
+    nama_pembeli: t.nama_pembeli,
+    nomor_hp: t.nomor_hp_pembeli,
+    items: t.items.map((i) => ({
+      nama_item: i.nama_item,
+      harga: i.harga,
+      jumlah: i.jumlah,
+      tipe: i.tipe,
+    })),
+    subtotal: t.subtotal,
+    total: t.total,
+    bayar: t.bayar,
+    kembalian: t.kembalian,
+    metode_bayar: t.metode_bayar,
+    kasir: t.pegawai.nama_pegawai,
+  });
 
   return (
     <div className="space-y-6">
@@ -141,7 +134,7 @@ export default function AdminTransaksiPage() {
               placeholder="Cari kode nota, pembeli, kasir…"
               value={cari}
               onChange={(e) => setCari(e.target.value)}
-              className="rl-input pl-9 text-xs w-full"
+              className="w-full pl-9 pr-3 py-2 rounded-xl bg-neutral-50 hover:bg-white focus:bg-white border border-neutral-200 focus:border-[#de1f26] focus:ring-2 focus:ring-red-100 text-xs text-neutral-800 transition-all outline-none"
             />
           </div>
 
@@ -251,18 +244,17 @@ export default function AdminTransaksiPage() {
                           className="btn-ghost py-1 px-2.5 text-[11px] font-semibold flex items-center gap-1"
                         >
                           <Receipt className="w-3.5 h-3.5" />
-                          <span>Nota</span>
+                          <span>Nota PDF</span>
                         </button>
 
-                        <a
-                          href={createWhatsAppLink(t)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors"
-                          title="Kirim Nota ke WhatsApp"
+                        <button
+                          type="button"
+                          onClick={() => shareReceiptPDFToWhatsApp(getReceiptData(t))}
+                          className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors border-0 bg-transparent cursor-pointer"
+                          title="Kirim PDF Nota ke WhatsApp"
                         >
-                          <MessageCircle className="w-4 h-4" />
-                        </a>
+                          <Share2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -345,22 +337,21 @@ export default function AdminTransaksiPage() {
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => window.print()}
-                className="py-2.5 px-3 rounded-lg bg-neutral-800 hover:bg-neutral-900 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+                onClick={() => downloadReceiptPDF(getReceiptData(activeReceipt))}
+                className="py-2.5 px-3 rounded-lg bg-neutral-800 hover:bg-neutral-900 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-sm transition-all"
               >
-                <Printer className="w-4 h-4" />
-                <span>Cetak Nota</span>
+                <Download className="w-4 h-4" />
+                <span>Unduh PDF</span>
               </button>
 
-              <a
-                href={createWhatsAppLink(activeReceipt)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="py-2.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 no-underline"
+              <button
+                type="button"
+                onClick={() => shareReceiptPDFToWhatsApp(getReceiptData(activeReceipt))}
+                className="py-2.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-sm transition-all border-0"
               >
-                <MessageCircle className="w-4 h-4" />
-                <span>Kirim via WA</span>
-              </a>
+                <Share2 className="w-4 h-4" />
+                <span>Kirim PDF ke WA</span>
+              </button>
             </div>
           </div>
         </div>
