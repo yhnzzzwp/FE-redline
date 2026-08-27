@@ -3,9 +3,11 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import serviceData from '@/data/service.json';
-import { Search, ChevronRight, X } from 'lucide-react';
+import { useConnection } from '@/lib/connection';
+import { Search, ChevronRight, X, WifiOff } from 'lucide-react';
 
 export default function AdminServicePage() {
+  const { isOnline } = useConnection();
   const [services] = useState(serviceData);
   const [cari, setCari] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
@@ -18,7 +20,9 @@ export default function AdminServicePage() {
     return 'rl-pill-blue';
   };
 
-  const filtered = services.filter((s) => {
+  const activeServices = isOnline ? services : [];
+
+  const filtered = activeServices.filter((s) => {
     const matchSearch =
       s.nomor_resi.toLowerCase().includes(cari.toLowerCase()) ||
       s.perangkat.nama_customer.toLowerCase().includes(cari.toLowerCase()) ||
@@ -32,9 +36,13 @@ export default function AdminServicePage() {
     return matchSearch && matchStatus;
   });
 
-  const activeCount = services.filter(
-    (s) => !s.status.toLowerCase().includes('selesai') && !s.status.toLowerCase().includes('diambil')
-  ).length;
+  const activeCount = isOnline
+    ? services.filter(
+        (s) =>
+          !s.status.toLowerCase().includes('selesai') &&
+          !s.status.toLowerCase().includes('diambil')
+      ).length
+    : 0;
 
   return (
     <div className="space-y-6">
@@ -47,6 +55,15 @@ export default function AdminServicePage() {
         </div>
       </div>
 
+      {!isOnline && (
+        <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3 text-xs text-amber-900">
+          <WifiOff className="w-4 h-4 text-amber-600 shrink-0" />
+          <span>
+            <strong>Mode Offline:</strong> Mohon maaf, tidak ada koneksi dengan database backend. Tiket servis pelanggan dinonaktifkan sementara saat offline.
+          </span>
+        </div>
+      )}
+
       {/* Filter Card */}
       <div className="rl-card p-4">
         <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
@@ -57,7 +74,8 @@ export default function AdminServicePage() {
               placeholder="Cari nomor resi, customer, perangkat..."
               value={cari}
               onChange={(e) => setCari(e.target.value)}
-              className="w-full pl-9 pr-8 py-2 rounded-xl bg-neutral-50 hover:bg-white focus:bg-white border border-neutral-200 focus:border-[#de1f26] focus:ring-2 focus:ring-red-100 text-xs text-neutral-800 transition-all outline-none"
+              disabled={!isOnline}
+              className="w-full pl-9 pr-8 py-2 rounded-xl bg-neutral-50 hover:bg-white focus:bg-white border border-neutral-200 focus:border-[#de1f26] focus:ring-2 focus:ring-red-100 text-xs text-neutral-800 transition-all outline-none disabled:opacity-60 disabled:cursor-not-allowed"
             />
             {cari && (
               <button
@@ -74,7 +92,8 @@ export default function AdminServicePage() {
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="rl-select text-xs w-full"
+              disabled={!isOnline}
+              className="rl-select text-xs w-full disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <option value="">Semua Status Pengerjaan</option>
               <option value="Diterima">Diterima</option>
@@ -85,21 +104,6 @@ export default function AdminServicePage() {
             </select>
           </div>
         </div>
-
-        {(cari || selectedStatus) && (
-          <div className="pt-2 text-right">
-            <button
-              type="button"
-              onClick={() => {
-                setCari('');
-                setSelectedStatus('');
-              }}
-              className="text-xs text-neutral-500 hover:text-[#b01218] font-semibold bg-transparent border-0 cursor-pointer"
-            >
-              Reset Filter
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Table Card */}
@@ -108,19 +112,24 @@ export default function AdminServicePage() {
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-neutral-100/70 border-b border-neutral-200 text-neutral-600 font-bold uppercase tracking-wider text-[10.5px]">
-                <th className="py-3 px-4">Resi Servis</th>
-                <th className="py-3 px-4">Pelanggan &amp; Perangkat</th>
-                <th className="py-3 px-4">Keluhan Utama</th>
-                <th className="py-3 px-4">Tgl Masuk</th>
+                <th className="py-3 px-4">Nomor Resi &amp; Waktu</th>
+                <th className="py-3 px-4">Customer &amp; Kontak</th>
+                <th className="py-3 px-4">Perangkat &amp; Keluhan</th>
                 <th className="py-3 px-4 text-center">Status</th>
                 <th className="py-3 px-4 text-center">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100 text-neutral-800">
-              {filtered.length === 0 ? (
+              {!isOnline ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-neutral-400 text-xs">
-                    Belum ada tiket servis yang sesuai dengan filter.
+                  <td colSpan={5} className="py-12 text-center text-neutral-400 text-xs px-4">
+                    Mohon maaf, tidak ada koneksi dengan database backend. Data servis tidak dapat dimuat saat offline.
+                  </td>
+                </tr>
+              ) : filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-12 text-center text-neutral-400 text-xs">
+                    Tidak ada tiket servis yang sesuai dengan filter.
                   </td>
                 </tr>
               ) : (
@@ -131,37 +140,33 @@ export default function AdminServicePage() {
                         {s.nomor_resi}
                       </div>
                       <div className="text-[10.5px] text-neutral-400 mt-0.5">
-                        ID: {s.perangkat.kode_perangkat}
+                        Masuk: {s.tanggal_masuk}
                       </div>
                     </td>
                     <td className="py-3 px-4">
-                      <div className="font-semibold text-neutral-900">
-                        {s.perangkat.nama_customer}
-                      </div>
-                      <div className="text-[11px] text-neutral-500">
-                        {s.perangkat.merk_model}
+                      <div className="font-bold text-neutral-900">{s.perangkat.nama_customer}</div>
+                      <div className="text-[10.5px] rl-mono text-neutral-400">
+                        {s.perangkat.nomor_hp_customer || '—'}
                       </div>
                     </td>
                     <td className="py-3 px-4">
-                      <p className="text-neutral-600 line-clamp-2 max-w-xs mb-0">
+                      <div className="font-medium text-neutral-800">{s.perangkat.merk_model}</div>
+                      <div className="text-[11px] text-neutral-500 line-clamp-1 max-w-xs">
                         {s.keluhan}
-                      </p>
-                    </td>
-                    <td className="py-3 px-4 text-neutral-500 rl-mono">
-                      {s.tanggal_masuk}
+                      </div>
                     </td>
                     <td className="py-3 px-4 text-center">
                       <span className={`rl-pill ${getPillColor(s.status)} text-[10px]`}>
-                        {s.status}
+                        {s.status.toUpperCase()}
                       </span>
                     </td>
                     <td className="py-3 px-4 text-center">
                       <Link
                         href={`/admin/service/${s.id}`}
-                        className="btn-redline py-1.5 px-3 text-[11px] font-bold inline-flex items-center gap-1 no-underline"
+                        className="btn-ghost py-1 px-2.5 text-[11px] font-semibold inline-flex items-center gap-1 no-underline"
                       >
-                        <span>Detail</span>
-                        <ChevronRight className="w-3.5 h-3.5" />
+                        <span>Kelola</span>
+                        <ChevronRight className="w-3 h-3" />
                       </Link>
                     </td>
                   </tr>
@@ -172,7 +177,7 @@ export default function AdminServicePage() {
         </div>
 
         <div className="p-3 border-t border-neutral-100 bg-neutral-50 text-[11px] text-neutral-400 text-right">
-          Menampilkan {filtered.length} dari total {services.length} tiket servis
+          Menampilkan {filtered.length} dari total {activeServices.length} tiket servis
         </div>
       </div>
     </div>

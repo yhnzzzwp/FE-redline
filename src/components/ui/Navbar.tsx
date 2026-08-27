@@ -2,9 +2,11 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useConnection } from '@/lib/connection';
 
 export default function Navbar() {
   const pathname = usePathname();
+  const { isOnline } = useConnection();
 
   const navLinks = [
     { label: 'Beranda', href: '/' },
@@ -38,13 +40,25 @@ export default function Navbar() {
         })}
       </div>
 
-      {/* Status Sistem: Terhubung API & Siap Offline/Online */}
-      <div className="ml-auto hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-50/90 border border-emerald-200/80 text-[11px] font-semibold text-emerald-800 shadow-sm">
+      {/* Status Real-time Koneksi API */}
+      <div
+        className={`ml-auto hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-full border text-[11px] font-semibold shadow-sm ${
+          isOnline
+            ? 'bg-emerald-50/90 border-emerald-200/80 text-emerald-800'
+            : 'bg-red-50/90 border-red-200/80 text-red-700'
+        }`}
+      >
         <span className="relative flex h-2 w-2">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          {isOnline && (
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          )}
+          <span
+            className={`relative inline-flex rounded-full h-2 w-2 ${
+              isOnline ? 'bg-emerald-500' : 'bg-red-500'
+            }`}
+          ></span>
         </span>
-        <span>Sistem Aktif &middot; Terhubung API / Mode Mandiri Siap</span>
+        <span>{isOnline ? 'Terkoneksi' : 'Tidak Tersedia'}</span>
       </div>
     </nav>
   );

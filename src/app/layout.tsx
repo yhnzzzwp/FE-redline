@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import ScrollReveal from '@/components/ui/ScrollReveal';
 import PublicShell from '@/components/ui/PublicShell';
+import { ConnectionProvider } from '@/lib/connection';
 
 export const metadata: Metadata = {
   title: 'Hardware & Servis Komputer · Redline Komputer',
@@ -20,8 +21,10 @@ export default function RootLayout({
   return (
     <html lang="id">
       <body className="flex flex-col min-h-screen">
-        <ScrollReveal />
-        <PublicShell>{children}</PublicShell>
+        <ConnectionProvider>
+          <ScrollReveal />
+          <PublicShell>{children}</PublicShell>
+        </ConnectionProvider>
       </body>
     </html>
   );

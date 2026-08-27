@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import transaksiData from '@/data/transaksi.json';
-import { Search, Download, Receipt, Share2, X } from 'lucide-react';
+import { useConnection } from '@/lib/connection';
+import { Search, Download, Receipt, Share2, X, WifiOff } from 'lucide-react';
 import { downloadReceiptPDF, shareReceiptPDFToWhatsApp, type ReceiptData } from '@/lib/pdfReceipt';
 
 interface TransaksiItem {
@@ -32,13 +33,16 @@ interface TransaksiRecord {
 }
 
 export default function AdminTransaksiPage() {
+  const { isOnline } = useConnection();
   const [transactions] = useState<TransaksiRecord[]>(transaksiData);
   const [cari, setCari] = useState('');
   const [selectedJenis, setSelectedJenis] = useState('');
   const [selectedTanggal, setSelectedTanggal] = useState('');
   const [activeReceipt, setActiveReceipt] = useState<TransaksiRecord | null>(null);
 
-  const filtered = transactions.filter((t) => {
+  const activeData = isOnline ? transactions : [];
+
+  const filtered = activeData.filter((t) => {
     const matchSearch =
       t.kode_nota.toLowerCase().includes(cari.toLowerCase()) ||
       t.nama_pembeli.toLowerCase().includes(cari.toLowerCase()) ||
@@ -56,6 +60,11 @@ export default function AdminTransaksiPage() {
   });
 
   const handleExportCSV = () => {
+    if (!isOnline) {
+      alert('Tidak dapat mengekspor data saat offline.');
+      return;
+    }
+
     const rows = [
       ['ID', 'Kode Nota', 'Tanggal', 'Customer', 'No HP', 'Kasir', 'Metode Bayar', 'Total (Rp)', 'Status', 'Rincian Item'],
     ];
@@ -110,19 +119,29 @@ export default function AdminTransaksiPage() {
         <div>
           <h1 className="rl-page-title mb-1">Daftar Transaksi</h1>
           <p className="rl-page-desc mb-0">
-            Riwayat seluruh transaksi penjualan POS dan pembayaran servis di Redline Komputer.
+            Riwayat transaksi kasir POS &amp; servis &mdash; Total {filtered.length} transaksi tercatat.
           </p>
         </div>
 
         <button
           type="button"
           onClick={handleExportCSV}
-          className="btn-redline flex items-center gap-1.5 text-xs font-bold"
+          disabled={!isOnline || filtered.length === 0}
+          className="btn-redline flex items-center gap-1.5 text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Download className="w-4 h-4" />
           <span>Ekspor CSV Transaksi</span>
         </button>
       </div>
+
+      {!isOnline && (
+        <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3 text-xs text-amber-900">
+          <WifiOff className="w-4 h-4 text-amber-600 shrink-0" />
+          <span>
+            <strong>Mode Offline:</strong> Mohon maaf, tidak ada koneksi dengan database server. Riwayat transaksi online dinonaktifkan sementara.
+          </span>
+        </div>
+      )}
 
       {/* Filter Card */}
       <div className="rl-card p-4">
@@ -201,7 +220,13 @@ export default function AdminTransaksiPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100 text-neutral-800">
-              {filtered.length === 0 ? (
+              {!isOnline ? (
+                <tr>
+                  <td colSpan={6} className="py-12 text-center text-neutral-400 text-xs px-4">
+                    Mohon maaf, tidak ada koneksi dengan database. Riwayat transaksi tidak dapat dimuat saat offline.
+                  </td>
+                </tr>
+              ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-neutral-400 text-xs">
                     Tidak ada transaksi yang sesuai dengan filter.
@@ -274,7 +299,7 @@ export default function AdminTransaksiPage() {
         </div>
 
         <div className="p-3 border-t border-neutral-100 bg-neutral-50 text-[11px] text-neutral-400 text-right">
-          Menampilkan {filtered.length} dari total {transactions.length} transaksi
+          Menampilkan {filtered.length} dari total {activeData.length} transaksi
         </div>
       </div>
 
