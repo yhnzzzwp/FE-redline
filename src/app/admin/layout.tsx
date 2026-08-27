@@ -50,7 +50,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <span className="rl-stripe"></span>
           </div>
           <div className="rl-ticks"></div>
-          <div className="rl-portal-chip">Admin &amp; Karyawan Console</div>
+          <div className="rl-portal-chip">Admin Console</div>
 
           {NAV_ITEMS.map((item) => (
             <Link

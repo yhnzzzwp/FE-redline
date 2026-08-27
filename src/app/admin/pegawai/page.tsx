@@ -2,9 +2,11 @@
 
 import { useState } from 'react';
 import pegawaiData from '@/data/pegawai.json';
-import { Search, X } from 'lucide-react';
+import { useConnection } from '@/lib/connection';
+import { Search, X, ShieldAlert } from 'lucide-react';
 
 export default function AdminPegawaiPage() {
+  const { isOnline } = useConnection();
   const [pegawaiList] = useState(pegawaiData);
   const [cari, setCari] = useState('');
 
@@ -57,6 +59,13 @@ export default function AdminPegawaiPage() {
             </button>
           )}
         </div>
+      </div>
+
+      <div className="p-3 bg-neutral-100 border border-neutral-200 rounded-xl flex items-center gap-2.5 text-xs text-neutral-600">
+        <ShieldAlert className="w-4 h-4 text-neutral-500 shrink-0" />
+        <span>
+          <strong>Hak Akses Pegawai:</strong> Daftar seluruh staf dan owner toko Redline Komputer Salatiga.
+        </span>
       </div>
 
       <div className="rl-card overflow-hidden">
@@ -137,7 +146,7 @@ export default function AdminPegawaiPage() {
                       )}
                     </td>
                     <td className="py-3 px-4 text-center">
-                      {p.sesi_count > 0 ? (
+                      {isOnline && p.sesi_count > 0 ? (
                         <span className="rl-pill rl-pill-blue text-[10px]">
                           {p.sesi_count} Perangkat
                         </span>
