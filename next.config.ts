@@ -1,8 +1,10 @@
 import type { NextConfig } from "next";
 
+const isVercel = process.env.VERCEL === "1";
+
 const nextConfig: NextConfig = {
-  // Mode standalone agar image Docker sangat ringan dan portabel
-  output: "standalone",
+  // Mode standalone hanya diaktifkan untuk build Docker lokal, bukan Vercel
+  ...(isVercel ? {} : { output: "standalone" }),
 
   // Sembunyikan X-Powered-By header untuk mencegah fingerprinting teknologi
   poweredByHeader: false,

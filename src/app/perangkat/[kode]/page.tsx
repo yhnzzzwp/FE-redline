@@ -4,6 +4,8 @@ import { fetchPerangkat } from '@/lib/api';
 import { createGeneralWhatsAppLink } from '@/lib/whatsapp';
 import { QrCode, Laptop, User, Calendar, Cpu, Wrench, MessageCircle } from 'lucide-react';
 
+export const dynamic = 'force-dynamic';
+
 export default async function PerangkatLifecyclePage({
   params,
 }: {

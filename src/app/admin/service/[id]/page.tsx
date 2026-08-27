@@ -26,6 +26,10 @@ export default function AdminServiceDetailPage({
     notFound();
   }
 
+  return <ServiceDetailContent service={service} />;
+}
+
+function ServiceDetailContent({ service }: { service: (typeof serviceData)[0] }) {
   const [currentStatus, setCurrentStatus] = useState(service.status);
   const [catatanBaru, setCatatanBaru] = useState('');
   const [history, setHistory] = useState(service.riwayat || []);
@@ -44,7 +48,7 @@ export default function AdminServiceDetailPage({
       id: Date.now(),
       status: currentStatus,
       catatan: catatanBaru || 'Perubahan status pengerjaan oleh teknisi.',
-      author: 'Adi Kusumo (Owner)',
+      author: 'Adi Kusumo (Owner & Pegawai)',
       waktu: new Date().toLocaleString('id-ID'),
     };
 

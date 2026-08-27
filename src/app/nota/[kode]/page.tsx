@@ -6,6 +6,8 @@ import transaksiData from '@/data/transaksi.json';
 import { Download, Printer, CheckCircle, ArrowLeft } from 'lucide-react';
 import { downloadReceiptPDF, type ReceiptData } from '@/lib/pdfReceipt';
 
+export const dynamic = 'force-dynamic';
+
 export default function NotaPublikPage({
   params,
 }: {

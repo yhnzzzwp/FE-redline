@@ -6,6 +6,8 @@ import { Produk } from '@/types';
 import ProductCard from '@/components/ui/ProductCard';
 import { MessageCircle, ShieldCheck, Award, MessageSquare } from 'lucide-react';
 
+export const dynamic = 'force-dynamic';
+
 export default async function ProductDetailPage({
   params,
 }: {
