@@ -1,0 +1,102 @@
+[
+  {
+    "id": 1,
+    "kategori_id": 1,
+    "sku": "RL-ASUS-G14-001",
+    "nama_produk": "ROG Zephyrus G14 2024 (OLED, Ryzen 9, RTX 4070)",
+    "deskripsi_produk": "Laptop gaming ultraportable berlayar ROG Nebula OLED 3K 120Hz. Dibekali prosesor AMD Ryzen 9 8945HS, RAM 32GB LPDDR5X, dan GPU RTX 4070 8GB GDDR6.",
+    "show_katalog": true,
+    "harga_dasar": 32500000,
+    "kategori": { "id": 1, "nama_kategori": "Laptops" }
+  },
+  {
+    "id": 2,
+    "kategori_id": 2,
+    "sku": "RL-NV-4090-FE",
+    "nama_produk": "ASUS ROG Strix GeForce RTX 4090 OC 24GB GDDR6X",
+    "deskripsi_produk": "Kartu grafis flagship untuk performa gaming 4K ekstrem dan rendering 3D profesional. Dilengkapi sistem pendingin Axial-tech 3.5-slot dan dual BIOS.",
+    "show_katalog": true,
+    "harga_dasar": 34999000,
+    "kategori": { "id": 2, "nama_kategori": "Graphics Cards" }
+  },
+  {
+    "id": 3,
+    "kategori_id": 2,
+    "sku": "RL-NV-4080-FE",
+    "nama_produk": "MSI GeForce RTX 4080 Super GAMING X SLIM 16GB",
+    "deskripsi_produk": "Performa grafis generasi terbaru dengan efisiensi daya arsitektur Ada Lovelace. Dukungan DLSS 3.5 Frame Generation.",
+    "show_katalog": true,
+    "harga_dasar": 18750000,
+    "kategori": { "id": 2, "nama_kategori": "Graphics Cards" }
+  },
+  {
+    "id": 4,
+    "kategori_id": 3,
+    "sku": "RL-AMD-7950X",
+    "nama_produk": "AMD Ryzen 9 7950X Desktop Processor (16C/32T up to 5.7GHz)",
+    "deskripsi_produk": "Prosesor 16-Core 32-Thread soket AM5 arsitektur Zen 4. Mendukung memori DDR5 dan PCIe 5.0 berkecepatan tinggi.",
+    "show_katalog": true,
+    "harga_dasar": 8650000,
+    "kategori": { "id": 3, "nama_kategori": "Processors" }
+  },
+  {
+    "id": 5,
+    "kategori_id": 3,
+    "sku": "RL-INTEL-14700K",
+    "nama_produk": "Intel Core i7-14700K Desktop Processor (20 Cores)",
+    "deskripsi_produk": "Prosesor 20 Cores (8 P-cores + 12 E-cores) clock up to 5.6 GHz soket LGA1700 dengan Intel UHD Graphics 770.",
+    "show_katalog": true,
+    "harga_dasar": 6850000,
+    "kategori": { "id": 3, "nama_kategori": "Processors" }
+  },
+  {
+    "id": 6,
+    "kategori_id": 4,
+    "sku": "RL-ASUS-B650E",
+    "nama_produk": "ASUS ROG STRIX B650E-F GAMING WIFI (Socket AM5)",
+    "deskripsi_produk": "Motherboard gaming AM5 dengan PCIe 5.0 slot, 12+2 power stages, WiFi 6E, dan Intel 2.5Gb Ethernet.",
+    "show_katalog": true,
+    "harga_dasar": 4750000,
+    "kategori": { "id": 4, "nama_kategori": "Motherboards" }
+  },
+  {
+    "id": 7,
+    "kategori_id": 5,
+    "sku": "RL-SS-APEX",
+    "nama_produk": "SteelSeries Apex Pro HyperMagnetic Keyboard",
+    "deskripsi_produk": "Keyboard mekanikal OmniPoint 2.0 switch dengan actuating distance yang dapat diatur dari 0.1mm hingga 4.0mm.",
+    "show_katalog": true,
+    "harga_dasar": 3650000,
+    "kategori": { "id": 5, "nama_kategori": "Peripherals" }
+  },
+  {
+    "id": 8,
+    "kategori_id": 5,
+    "sku": "RL-KC-Q1P-W",
+    "nama_produk": "Keychron Q1 Pro Wireless Custom Mechanical Keyboard",
+    "deskripsi_produk": "75% layout all-metal CNC machined body, QMK/VIA programmable, hot-swappable socket, Bluetooth 5.1 & Type-C.",
+    "show_katalog": true,
+    "harga_dasar": 2950000,
+    "kategori": { "id": 5, "nama_kategori": "Peripherals" }
+  },
+  {
+    "id": 9,
+    "kategori_id": 6,
+    "sku": "RL-LG-34GL-G",
+    "nama_produk": "LG UltraGear 34GP950G-B Curved Gaming Monitor (34\" Nano IPS)",
+    "deskripsi_produk": "Layar lengkung 21:9 WQHD (3440 x 1440) 144Hz overclockable to 180Hz dengan response time 1ms dan NVIDIA G-Sync Ultimate.",
+    "show_katalog": true,
+    "harga_dasar": 14200000,
+    "kategori": { "id": 6, "nama_kategori": "Monitors" }
+  },
+  {
+    "id": 10,
+    "kategori_id": 4,
+    "sku": "RL-SS-990P-2T",
+    "nama_produk": "Samsung 990 PRO NVMe M.2 SSD 2TB PCIe 4.0",
+    "deskripsi_produk": "SSD NVMe M.2 kecepatan baca hingga 7.450 MB/s dan tulis 6.900 MB/s. Dilengkapi Samsung in-house controller.",
+    "show_katalog": true,
+    "harga_dasar": 2850000,
+    "kategori": { "id": 4, "nama_kategori": "Motherboards" }
+  }
+]

@@ -50,21 +50,13 @@ export default function HomePage() {
       }
     }
 
-    if (searchTerm) {
-      setLoading(true);
-      const timer = setTimeout(() => {
-        loadProducts();
-      }, 200);
-      return () => {
-        active = false;
-        clearTimeout(timer);
-      };
-    } else {
+    const timer = setTimeout(() => {
       loadProducts();
-    }
+    }, searchTerm ? 200 : 0);
 
     return () => {
       active = false;
+      clearTimeout(timer);
     };
   }, [selectedCategory, searchTerm]);
 

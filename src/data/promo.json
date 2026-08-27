@@ -1,0 +1,58 @@
+[
+  {
+    "id": 1,
+    "nama_promo": "Promo Rakit PC & Servis Spesial",
+    "kode_promo": "REDLINE-STAGE1",
+    "tipe_promo": "Persen",
+    "besar_promo": 15,
+    "minimal_transaksi": 500000,
+    "maksimal_diskon": 250000,
+    "waktu_mulai": "2026-07-01",
+    "waktu_berakhir": "2026-12-31",
+    "kuota": 100,
+    "terpakai": 24,
+    "aktif": true
+  },
+  {
+    "id": 2,
+    "nama_promo": "Flash Sale Akhir Tahun Gaming",
+    "kode_promo": "GAMING40",
+    "tipe_promo": "Persen",
+    "besar_promo": 40,
+    "minimal_transaksi": 5000000,
+    "maksimal_diskon": 2000000,
+    "waktu_mulai": "2026-07-01",
+    "waktu_berakhir": "2026-12-31",
+    "kuota": 50,
+    "terpakai": 18,
+    "aktif": true
+  },
+  {
+    "id": 3,
+    "nama_promo": "Gratis Pembersihan & Thermal Paste",
+    "kode_promo": "CLEAN-CARE",
+    "tipe_promo": "Nominal",
+    "besar_promo": 50000,
+    "minimal_transaksi": 200000,
+    "maksimal_diskon": 50000,
+    "waktu_mulai": "2026-07-01",
+    "waktu_berakhir": "2026-09-30",
+    "kuota": 200,
+    "terpakai": 45,
+    "aktif": true
+  },
+  {
+    "id": 4,
+    "nama_promo": "Diskon Rakit Workstation",
+    "kode_promo": "NEWPC500",
+    "tipe_promo": "Nominal",
+    "besar_promo": 500000,
+    "minimal_transaksi": 15000000,
+    "maksimal_diskon": 500000,
+    "waktu_mulai": "2026-07-01",
+    "waktu_berakhir": "2026-08-15",
+    "kuota": 20,
+    "terpakai": 20,
+    "aktif": false
+  }
+]

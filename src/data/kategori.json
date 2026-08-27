@@ -1,0 +1,8 @@
+[
+  { "id": 1, "nama_kategori": "Laptops", "deskripsi_kategori": "Laptop kerja & gaming" },
+  { "id": 2, "nama_kategori": "Graphics Cards", "deskripsi_kategori": "GPU / VGA add-in" },
+  { "id": 3, "nama_kategori": "Processors", "deskripsi_kategori": "CPU Intel & AMD" },
+  { "id": 4, "nama_kategori": "Motherboards", "deskripsi_kategori": "Mainboard semua socket" },
+  { "id": 5, "nama_kategori": "Peripherals", "deskripsi_kategori": "Keyboard, mouse, headset" },
+  { "id": 6, "nama_kategori": "Monitors", "deskripsi_kategori": "Layar & display" }
+]

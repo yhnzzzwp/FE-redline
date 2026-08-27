@@ -1,0 +1,648 @@
+'use client';
+
+import { useState } from 'react';
+import produkData from '@/data/produk.json';
+import {
+  ShoppingBag,
+  Plus,
+  Trash2,
+  Printer,
+  MessageCircle,
+  CheckCircle,
+  Search,
+  Receipt,
+  X,
+} from 'lucide-react';
+
+interface CartLine {
+  id: string;
+  produk_id?: number;
+  nama_item: string;
+  harga: number;
+  jumlah: number;
+  tipe: 'Produk' | 'Servis';
+}
+
+interface CompletedNota {
+  kode_nota: string;
+  tanggal: string;
+  nama_pembeli: string;
+  nomor_hp: string;
+  items: CartLine[];
+  subtotal: number;
+  total: number;
+  bayar: number;
+  kembalian: number;
+  metode_bayar: string;
+  kasir: string;
+}
+
+function createReceiptNumber(): string {
+  return String(Date.now()).slice(-6);
+}
+
+function getFormattedDate(): string {
+  return new Date().toLocaleString('id-ID');
+}
+
+export default function AdminPosPage() {
+  const [cart, setCart] = useState<CartLine[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [namaPembeli, setNamaPembeli] = useState('Umum');
+  const [nomorHp, setNomorHp] = useState('');
+  const [metodeBayar, setMetodeBayar] = useState('Tunai');
+  const [bayarNominal, setBayarNominal] = useState<number>(0);
+  const [lastNota, setLastNota] = useState<CompletedNota | null>(null);
+
+  // Manual Custom Item inputs
+  const [customNama, setCustomNama] = useState('');
+  const [customHarga, setCustomHarga] = useState<number | ''>('');
+  const [customQty, setCustomQty] = useState<number>(1);
+  const [customTipe, setCustomTipe] = useState<'Produk' | 'Servis'>('Produk');
+
+  const filteredProducts = produkData.filter(
+    (p) =>
+      p.nama_produk.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.sku.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const addCustomItem = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customNama.trim() || !customHarga || Number(customHarga) <= 0 || customQty < 1) return;
+
+    const newLine: CartLine = {
+      id: crypto.randomUUID(),
+      nama_item: customNama.trim(),
+      harga: Number(customHarga),
+      jumlah: Number(customQty),
+      tipe: customTipe,
+    };
+
+    setCart([...cart, newLine]);
+    setCustomNama('');
+    setCustomHarga('');
+    setCustomQty(1);
+  };
+
+  const addFromCatalog = (p: typeof produkData[0]) => {
+    const inputPrice = prompt(
+      `Masukkan harga jual untuk "${p.nama_produk}":`,
+      p.harga_dasar ? p.harga_dasar.toString() : '0'
+    );
+    if (inputPrice !== null && !isNaN(Number(inputPrice)) && Number(inputPrice) >= 0) {
+      const existing = cart.find((c) => c.produk_id === p.id && c.harga === Number(inputPrice));
+      if (existing) {
+        setCart(
+          cart.map((c) => (c.id === existing.id ? { ...c, jumlah: c.jumlah + 1 } : c))
+        );
+      } else {
+        setCart([
+          ...cart,
+          {
+            id: crypto.randomUUID(),
+            produk_id: p.id,
+            nama_item: p.nama_produk,
+            harga: Number(inputPrice),
+            jumlah: 1,
+            tipe: 'Produk',
+          },
+        ]);
+      }
+    }
+  };
+
+  const updateQty = (id: string, delta: number) => {
+    setCart(
+      cart
+        .map((item) => {
+          if (item.id === id) {
+            const next = item.jumlah + delta;
+            return next > 0 ? { ...item, jumlah: next } : null;
+          }
+          return item;
+        })
+        .filter(Boolean) as CartLine[]
+    );
+  };
+
+  const updatePrice = (id: string, newPrice: number) => {
+    if (isNaN(newPrice) || newPrice < 0) return;
+    setCart(cart.map((item) => (item.id === id ? { ...item, harga: newPrice } : item)));
+  };
+
+  const removeItem = (id: string) => {
+    setCart(cart.filter((c) => c.id !== id));
+  };
+
+  const subtotal = cart.reduce((acc, c) => acc + c.harga * c.jumlah, 0);
+  const total = subtotal;
+  const kembalian = Math.max(0, (bayarNominal || 0) - total);
+
+  const handleCheckout = () => {
+    if (cart.length === 0) return;
+    if (metodeBayar === 'Tunai' && (bayarNominal || 0) < total) {
+      alert('Jumlah pembayaran kurang dari total tagihan!');
+      return;
+    }
+
+    const kode_nota = createReceiptNumber();
+    const completed: CompletedNota = {
+      kode_nota,
+      tanggal: getFormattedDate(),
+      nama_pembeli: namaPembeli || 'Umum',
+      nomor_hp: nomorHp,
+      items: [...cart],
+      subtotal,
+      total,
+      bayar: metodeBayar === 'Tunai' ? (bayarNominal || total) : total,
+      kembalian,
+      metode_bayar: metodeBayar,
+      kasir: 'Adi Kusumo (Owner)',
+    };
+
+    setLastNota(completed);
+    setCart([]);
+    setBayarNominal(0);
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const createWhatsAppReceiptLink = (nota: CompletedNota) => {
+    const phone = (nota.nomor_hp || '').replace(/^0/, '62').replace(/\D/g, '');
+    let text = `*NOTA PEMBELIAN REDLINE KOMPUTER*\n`;
+    text += `===============================\n`;
+    text += `No. Nota : #${nota.kode_nota}\n`;
+    text += `Tanggal  : ${nota.tanggal}\n`;
+    text += `Customer : ${nota.nama_pembeli}\n`;
+    text += `Kasir    : ${nota.kasir}\n`;
+    text += `-------------------------------\n`;
+    nota.items.forEach((item, idx) => {
+      text += `${idx + 1}. ${item.nama_item}\n`;
+      text += `   ${item.jumlah}x @ Rp ${item.harga.toLocaleString('id-ID')} = Rp ${(item.jumlah * item.harga).toLocaleString('id-ID')}\n`;
+    });
+    text += `-------------------------------\n`;
+    text += `*TOTAL TAGIHAN : Rp ${nota.total.toLocaleString('id-ID')}*\n`;
+    text += `Metode Bayar  : ${nota.metode_bayar}\n`;
+    if (nota.metode_bayar === 'Tunai') {
+      text += `Bayar         : Rp ${nota.bayar.toLocaleString('id-ID')}\n`;
+      text += `Kembalian     : Rp ${nota.kembalian.toLocaleString('id-ID')}\n`;
+    }
+    text += `===============================\n`;
+    text += `Terima kasih telah berbelanja di Redline Komputer Salatiga!\n`;
+    text += `Garansi & Servis: 085640203069`;
+
+    const encoded = encodeURIComponent(text);
+    if (phone.length >= 8) {
+      return `https://wa.me/${phone}?text=${encoded}`;
+    }
+    return `https://wa.me/?text=${encoded}`;
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="rl-page-header flex items-start justify-between flex-wrap gap-2">
+        <div>
+          <h1 className="rl-page-title mb-1">Kasir (POS)</h1>
+          <p className="rl-page-desc mb-0">
+            Pencatatan transaksi kasir dengan fleksibilitas input harga mandiri, cetak nota, &amp; kirim WhatsApp.
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Kolom Kiri: Input Item Manual & Master Katalog */}
+        <div className="lg:col-span-7 space-y-6">
+          {/* Input Item Manual dengan Harga Tersendiri */}
+          <div className="rl-card p-5 space-y-4">
+            <div className="flex items-center gap-2 pb-2 border-b border-neutral-100">
+              <Plus className="w-4 h-4 text-[#de1f26]" />
+              <h2 className="text-sm font-bold text-neutral-900 uppercase tracking-wider">
+                Input Item / Jasa Mandiri (Harga Kustom)
+              </h2>
+            </div>
+
+            <form onSubmit={addCustomItem} className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                <div className="sm:col-span-6">
+                  <label className="text-[11px] font-semibold text-neutral-500 block mb-1">
+                    Nama Barang / Jasa Servis
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Misal: Jasa Rakit PC / Thermal Paste..."
+                    value={customNama}
+                    onChange={(e) => setCustomNama(e.target.value)}
+                    required
+                    className="rl-input text-xs w-full"
+                  />
+                </div>
+
+                <div className="sm:col-span-3">
+                  <label className="text-[11px] font-semibold text-neutral-500 block mb-1">
+                    Tipe Item
+                  </label>
+                  <select
+                    value={customTipe}
+                    onChange={(e) => setCustomTipe(e.target.value as 'Produk' | 'Servis')}
+                    className="rl-select text-xs w-full"
+                  >
+                    <option value="Produk">Produk</option>
+                    <option value="Servis">Servis / Jasa</option>
+                  </select>
+                </div>
+
+                <div className="sm:col-span-3">
+                  <label className="text-[11px] font-semibold text-neutral-500 block mb-1">
+                    Harga Satuan (Rp)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={customHarga}
+                    onChange={(e) => setCustomHarga(e.target.value ? Number(e.target.value) : '')}
+                    required
+                    className="rl-input text-xs w-full rl-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 pt-1">
+                <div className="flex items-center gap-2 text-xs">
+                  <label className="font-semibold text-neutral-500">Jumlah:</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={customQty}
+                    onChange={(e) => setCustomQty(Math.max(1, Number(e.target.value)))}
+                    className="rl-input text-xs w-20 text-center rl-mono"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="btn-redline py-2 px-4 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>+ Tambahkan ke Keranjang</span>
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* Master Katalog */}
+          <div className="rl-card p-5 space-y-4">
+            <div className="flex items-center justify-between gap-4 pb-2 border-b border-neutral-100">
+              <div className="flex items-center gap-2">
+                <ShoppingBag className="w-4 h-4 text-[#de1f26]" />
+                <h2 className="text-sm font-bold text-neutral-900 uppercase tracking-wider">
+                  Pilih dari Master Katalog
+                </h2>
+              </div>
+              <div className="relative w-56">
+                <Search className="w-3.5 h-3.5 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Cari produk / SKU..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="rl-input pl-8 py-1.5 text-xs w-full"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-96 overflow-y-auto pr-1">
+              {filteredProducts.map((p) => (
+                <div
+                  key={p.id}
+                  className="p-3.5 rounded-xl border border-neutral-200 bg-white hover:border-[#de1f26]/40 transition-all flex flex-col justify-between gap-2.5 shadow-sm"
+                >
+                  <div>
+                    <h4 className="text-xs font-bold text-neutral-900 line-clamp-2 leading-snug">
+                      {p.nama_produk}
+                    </h4>
+                    <span className="text-[10px] rl-mono text-neutral-400 block mt-1">
+                      SKU: {p.sku} &middot; {p.kategori.nama_kategori}
+                    </span>
+                    <span className="text-xs font-bold text-[#b01218] rl-mono mt-1 block">
+                      Ref: Rp {(p.harga_dasar || 0).toLocaleString('id-ID')}
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => addFromCatalog(p)}
+                    className="w-full py-1.5 px-3 rounded-lg bg-neutral-100 hover:bg-[#de1f26] hover:text-white text-neutral-800 text-xs font-bold transition-all text-center border-0 cursor-pointer"
+                  >
+                    + Masukkan &amp; Set Harga
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Kolom Kanan: Rincian Keranjang & Checkout */}
+        <div className="lg:col-span-5 space-y-6">
+          <div className="rl-card p-6 space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
+              <h2 className="text-sm font-bold text-neutral-900 uppercase tracking-wider flex items-center gap-2">
+                <Receipt className="w-4 h-4 text-[#de1f26]" />
+                Rincian Nota Transaksi
+              </h2>
+              <span className="text-xs text-neutral-400 rl-mono font-semibold">
+                {cart.length} Item
+              </span>
+            </div>
+
+            {/* List Cart Items */}
+            <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+              {cart.length === 0 ? (
+                <div className="py-12 text-center text-xs text-neutral-400">
+                  Keranjang masih kosong. Tambahkan item di samping.
+                </div>
+              ) : (
+                cart.map((item) => (
+                  <div
+                    key={item.id}
+                    className="p-3 rounded-xl bg-neutral-50 border border-neutral-200 flex flex-col gap-2 text-xs"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <span className="font-bold text-neutral-900 block leading-tight">
+                          {item.nama_item}
+                        </span>
+                        <span className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider">
+                          {item.tipe}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeItem(item.id)}
+                        className="p-1 text-neutral-400 hover:text-red-600 bg-transparent border-0 cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-neutral-200/60">
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-[10px] text-neutral-500">Harga:</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={item.harga}
+                          onChange={(e) => updatePrice(item.id, Number(e.target.value))}
+                          className="rl-input text-xs py-0.5 px-1.5 w-24 rl-mono font-semibold text-right"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => updateQty(item.id, -1)}
+                          className="w-5 h-5 rounded bg-neutral-200 hover:bg-neutral-300 font-bold text-xs flex items-center justify-center border-0 cursor-pointer"
+                        >
+                          -
+                        </button>
+                        <span className="w-5 text-center font-bold rl-mono">{item.jumlah}</span>
+                        <button
+                          type="button"
+                          onClick={() => updateQty(item.id, 1)}
+                          className="w-5 h-5 rounded bg-neutral-200 hover:bg-neutral-300 font-bold text-xs flex items-center justify-center border-0 cursor-pointer"
+                        >
+                          +
+                        </button>
+                      </div>
+
+                      <span className="font-bold text-neutral-900 rl-mono">
+                        Rp {(item.harga * item.jumlah).toLocaleString('id-ID')}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Informasi Pelanggan & Pembayaran */}
+            <div className="space-y-3 pt-3 border-t border-neutral-100 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] text-neutral-500 font-semibold block mb-1">
+                    Nama Pelanggan
+                  </label>
+                  <input
+                    type="text"
+                    value={namaPembeli}
+                    onChange={(e) => setNamaPembeli(e.target.value)}
+                    className="rl-input text-xs w-full"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-neutral-500 font-semibold block mb-1">
+                    No. WhatsApp Pelanggan
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="085640203069"
+                    value={nomorHp}
+                    onChange={(e) => setNomorHp(e.target.value)}
+                    className="rl-input text-xs w-full"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] text-neutral-500 font-semibold block mb-1">
+                  Metode Pembayaran
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {['Tunai', 'QRIS', 'Transfer'].map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setMetodeBayar(m)}
+                      className={`py-2 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                        metodeBayar === m
+                          ? 'bg-[#de1f26] text-white border-[#de1f26]'
+                          : 'bg-neutral-100 text-neutral-700 border-neutral-200'
+                      }`}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {metodeBayar === 'Tunai' && (
+                <div>
+                  <label className="text-[11px] text-neutral-500 font-semibold block mb-1">
+                    Nominal Uang Tunai Diterima (Rp)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={bayarNominal || ''}
+                    onChange={(e) => setBayarNominal(Number(e.target.value))}
+                    className="rl-input text-sm font-bold rl-mono w-full"
+                  />
+                </div>
+              )}
+
+              <div className="space-y-1.5 pt-3 border-t border-neutral-100">
+                <div className="flex justify-between text-neutral-600 text-xs">
+                  <span>Total Tagihan</span>
+                  <span className="rl-mono font-bold text-base text-[#b01218]">
+                    Rp {total.toLocaleString('id-ID')}
+                  </span>
+                </div>
+                {metodeBayar === 'Tunai' && (
+                  <div className="flex justify-between text-neutral-600 text-xs">
+                    <span>Kembalian</span>
+                    <span className="rl-mono font-bold text-sm text-emerald-600">
+                      Rp {kembalian.toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={handleCheckout}
+                disabled={cart.length === 0}
+                className="btn-redline w-full py-3 text-sm font-bold flex items-center justify-center gap-2 cursor-pointer mt-2"
+              >
+                <span>Selesaikan Transaksi &amp; Terbitkan Nota</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Modal Popup Nota / Struk PDF & WA */}
+      {lastNota && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white border border-neutral-200 p-6 space-y-5 shadow-2xl print:shadow-none print:border-0 print:p-0">
+            <style>{`
+              @media print {
+                body > *:not(.fixed) { display: none !important; }
+                .fixed { position: static !important; background: white !important; }
+                .print\\:hidden { display: none !important; }
+              }
+            `}</style>
+
+            <div className="flex items-center justify-between print:hidden">
+              <div className="flex items-center gap-2 text-emerald-600 font-bold text-sm">
+                <CheckCircle className="w-5 h-5" />
+                <span>Transaksi Berhasil</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setLastNota(null)}
+                className="text-neutral-400 hover:text-neutral-600 bg-transparent border-0 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Thermal Receipt Body */}
+            <div className="p-4 rounded-xl bg-neutral-50 border border-neutral-200 text-neutral-800 space-y-3 text-xs font-mono">
+              <div className="text-center pb-2 border-b border-neutral-200">
+                <h3 className="font-bold text-sm uppercase tracking-wider text-neutral-900">
+                  REDLINE KOMPUTER
+                </h3>
+                <p className="text-[10px] text-neutral-500 mb-0">
+                  Jl. Pemuda No. 45, Salatiga &middot; 0856-4020-3069
+                </p>
+              </div>
+
+              <div className="flex justify-between text-[11px] text-neutral-600">
+                <span>Nota: #{lastNota.kode_nota}</span>
+                <span>{lastNota.tanggal}</span>
+              </div>
+
+              <div className="text-[11px] text-neutral-600">
+                <span>Pelanggan: {lastNota.nama_pembeli}</span>
+                {lastNota.nomor_hp && <span> ({lastNota.nomor_hp})</span>}
+              </div>
+
+              <div className="border-t border-b border-neutral-200 py-2 space-y-1.5">
+                {lastNota.items.map((item, idx) => (
+                  <div key={idx} className="space-y-0.5">
+                    <div className="font-semibold text-neutral-900">{item.nama_item}</div>
+                    <div className="flex justify-between text-[11px] text-neutral-600">
+                      <span>
+                        {item.jumlah}x @ Rp {item.harga.toLocaleString('id-ID')}
+                      </span>
+                      <span>Rp {(item.jumlah * item.harga).toLocaleString('id-ID')}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-1 text-[11px]">
+                <div className="flex justify-between font-bold text-neutral-900 text-xs">
+                  <span>TOTAL</span>
+                  <span>Rp {lastNota.total.toLocaleString('id-ID')}</span>
+                </div>
+                <div className="flex justify-between text-neutral-600">
+                  <span>Metode</span>
+                  <span>{lastNota.metode_bayar}</span>
+                </div>
+                {lastNota.metode_bayar === 'Tunai' && (
+                  <>
+                    <div className="flex justify-between text-neutral-600">
+                      <span>Bayar</span>
+                      <span>Rp {lastNota.bayar.toLocaleString('id-ID')}</span>
+                    </div>
+                    <div className="flex justify-between text-neutral-600">
+                      <span>Kembalian</span>
+                      <span>Rp {lastNota.kembalian.toLocaleString('id-ID')}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="text-center pt-2 border-t border-neutral-200 text-[10px] text-neutral-500">
+                Terima kasih atas kunjungan Anda!
+              </div>
+            </div>
+
+            {/* Action Buttons: Print PDF & Send WA */}
+            <div className="grid grid-cols-2 gap-2 print:hidden">
+              <button
+                type="button"
+                onClick={handlePrint}
+                className="py-2.5 px-3 rounded-lg bg-neutral-800 hover:bg-neutral-900 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <Printer className="w-4 h-4" />
+                <span>Cetak Nota / PDF</span>
+              </button>
+
+              <a
+                href={createWhatsAppReceiptLink(lastNota)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="py-2.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 no-underline"
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span>Kirim via WA</span>
+              </a>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setLastNota(null)}
+              className="w-full btn-ghost text-xs font-semibold py-2 print:hidden"
+            >
+              Tutup &amp; Transaksi Baru
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
