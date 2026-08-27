@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import produkData from '@/data/produk.json';
-import { Search, Download, ShieldAlert } from 'lucide-react';
+import { Search, Download, ShieldAlert, X } from 'lucide-react';
 
 export default function AdminProdukPage() {
   const [cari, setCari] = useState('');
@@ -73,11 +73,20 @@ export default function AdminProdukPage() {
             <Search className="w-4 h-4 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Cari nama produk, SKU, atau kategori…"
+              placeholder="Cari produk..."
               value={cari}
               onChange={(e) => setCari(e.target.value)}
-              className="rl-input pl-9 text-xs w-full"
+              className="w-full pl-9 pr-8 py-2 rounded-xl bg-white border border-neutral-200 focus:border-[#de1f26] focus:ring-2 focus:ring-red-100 text-xs text-neutral-800 transition-all outline-none"
             />
+            {cari && (
+              <button
+                type="button"
+                onClick={() => setCari('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 border-0 bg-transparent cursor-pointer p-0"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
           {cari && (

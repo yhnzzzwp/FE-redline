@@ -158,7 +158,10 @@ export async function shareReceiptPDFToWhatsApp(data: ReceiptData): Promise<void
 
   // Clean phone number
   const phone = (data.nomor_hp || '').replace(/^0/, '62').replace(/\D/g, '');
-  const messageText = `Halo Kak *${data.nama_pembeli}*,\n\nTerlampir file PDF Nota Transaksi resmi *#${data.kode_nota}* dari *Redline Komputer Salatiga*.\n\nTotal: *Rp ${data.total.toLocaleString('id-ID')}* (${data.metode_bayar})\n\nTerima kasih telah berbelanja di toko kami! Simpan nota PDF ini untuk bukti pembelian & klaim garansi resmi.`;
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://redline-testing1.yohaneswp.sbs';
+  const liveNotaUrl = `${baseUrl}/nota/${data.kode_nota}`;
+
+  const messageText = `Halo Kak *${data.nama_pembeli}*,\n\nBerikut adalah *Nota Transaksi & File PDF Resmi #${data.kode_nota}* dari *Redline Komputer Salatiga*:\n\n📄 *Buka & Unduh Nota PDF Resmi:* \n👉 ${liveNotaUrl}\n\n💰 *Total Tagihan:* Rp ${data.total.toLocaleString('id-ID')} (${data.metode_bayar})\n\nTerima kasih telah berbelanja di Redline Komputer! Simpan tautan & file PDF ini sebagai bukti pembelian dan klaim garansi resmi.`;
 
   // If Web Share API with files is supported (e.g. mobile Chrome / Safari)
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -174,11 +177,11 @@ export async function shareReceiptPDFToWhatsApp(data: ReceiptData): Promise<void
     }
   }
 
-  // Fallback for Desktop / browsers without file sharing:
+  // Fallback for Desktop web:
   // 1. Auto-download the PDF
   downloadReceiptPDF(data, fileName);
 
-  // 2. Open WhatsApp chat with the pre-filled message
+  // 2. Open WhatsApp chat with the pre-filled message and direct digital invoice link
   const waUrl = phone.length >= 8
     ? `https://wa.me/${phone}?text=${encodeURIComponent(messageText)}`
     : `https://wa.me/?text=${encodeURIComponent(messageText)}`;

@@ -131,11 +131,20 @@ export default function AdminTransaksiPage() {
             <Search className="w-4 h-4 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Cari kode nota, pembeli, kasir…"
+              placeholder="Cari transaksi, nota, pembeli..."
               value={cari}
               onChange={(e) => setCari(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 rounded-xl bg-neutral-50 hover:bg-white focus:bg-white border border-neutral-200 focus:border-[#de1f26] focus:ring-2 focus:ring-red-100 text-xs text-neutral-800 transition-all outline-none"
+              className="w-full pl-9 pr-8 py-2 rounded-xl bg-neutral-50 hover:bg-white focus:bg-white border border-neutral-200 focus:border-[#de1f26] focus:ring-2 focus:ring-red-100 text-xs text-neutral-800 transition-all outline-none"
             />
+            {cari && (
+              <button
+                type="button"
+                onClick={() => setCari('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 border-0 bg-transparent cursor-pointer p-0"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
           <div className="sm:col-span-4">

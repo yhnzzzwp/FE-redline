@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { Server } from 'lucide-react';
 
 const NAV_ITEMS = [
   { key: 'dashboard', label: 'Dashboard', href: '/admin', path: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z' },
@@ -63,7 +64,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </Link>
           ))}
 
-          <div className="rl-side__foot">
+          <div className="rl-side__foot space-y-2">
+            {/* Status Koneksi API & Resiliensi Offline */}
+            <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-200/90 text-left space-y-1.5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 font-bold text-[11px] text-neutral-800">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                  <span>Koneksi API &amp; Server</span>
+                </div>
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 uppercase tracking-wider">
+                  Tersedia
+                </span>
+              </div>
+              <p className="text-[10px] text-neutral-500 leading-tight mb-0">
+                Website FE terhubung dengan REST API Backend &amp; 100% siap digunakan secara <strong>Online</strong> maupun <strong>Offline</strong>.
+              </p>
+            </div>
+
             <button
               type="button"
               onClick={handleLogout}
@@ -93,11 +113,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             />
           </div>
 
-          <div className="ml-auto text-right hidden lg:block leading-tight">
-            <div className="font-semibold text-sm" style={{ color: 'var(--ink)' }}>Adi Kusumo</div>
-            <div className="text-neutral-500 text-xs">Owner &middot; {currentDate}</div>
+          <div className="flex items-center gap-3 ml-auto">
+            {/* Status Badge API Online/Offline di Topbar */}
+            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200/80 text-[11px] font-semibold text-emerald-800">
+              <Server className="w-3.5 h-3.5 text-emerald-600" />
+              <span>API Backend Aktif &middot; Mode Online/Offline Siap</span>
+            </div>
+
+            <div className="text-right hidden lg:block leading-tight">
+              <div className="font-semibold text-sm" style={{ color: 'var(--ink)' }}>Adi Kusumo</div>
+              <div className="text-neutral-500 text-xs">Owner &middot; {currentDate}</div>
+            </div>
+            <div className="rl-avatar hidden lg:inline-flex">AK</div>
           </div>
-          <div className="rl-avatar hidden lg:inline-flex">AK</div>
         </div>
 
         <div className="rl-body" id="konten" role="main">

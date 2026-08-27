@@ -157,7 +157,7 @@ export default function HomePage() {
                   <input
                     id="filter-cari"
                     type="text"
-                    placeholder="Misal: RTX 4090"
+                    placeholder="Cari produk..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="rl-input text-sm"

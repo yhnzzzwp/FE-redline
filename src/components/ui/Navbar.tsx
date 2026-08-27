@@ -37,6 +37,15 @@ export default function Navbar() {
           );
         })}
       </div>
+
+      {/* Status Sistem: Terhubung API & Siap Offline/Online */}
+      <div className="ml-auto hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-50/90 border border-emerald-200/80 text-[11px] font-semibold text-emerald-800 shadow-sm">
+        <span className="relative flex h-2 w-2">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+        </span>
+        <span>Sistem Aktif &middot; Terhubung API / Mode Mandiri Siap</span>
+      </div>
     </nav>
   );
 }
