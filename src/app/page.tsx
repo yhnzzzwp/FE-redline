@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import {
   dummyKategori,
   dummyProduk,
@@ -13,9 +12,11 @@ import {
 import { Kategori, Produk, Promo } from '@/types';
 import ProductCard from '@/components/ui/ProductCard';
 import PromoCarousel from '@/components/ui/PromoCarousel';
+import { useConnection } from '@/lib/connection';
 import { Filter, ChevronDown } from 'lucide-react';
 
 export default function HomePage() {
+  const { isOnline } = useConnection();
   const [products, setProducts] = useState<Produk[]>(dummyProduk);
   const [categories, setCategories] = useState<Kategori[]>(dummyKategori);
   const [promos, setPromos] = useState<Promo[]>(dummyPromos);
@@ -65,6 +66,8 @@ export default function HomePage() {
     setSearchTerm('');
   };
 
+  const displayedPromos = isOnline ? promos : [];
+
   return (
     <div>
       <section className="rl-hero text-center">
@@ -78,15 +81,6 @@ export default function HomePage() {
         <p className="rl-hero-desc">
           Hardware pilihan yang diuji satu per satu, rakitan presisi, dan servis dengan estimasi biaya di muka. Dari workstation harian sampai mesin gaming yang digeber sampai garis merah.
         </p>
-
-        <div className="flex gap-3 justify-center mt-6 flex-wrap px-3 rl-hero-actions">
-          <a href="#katalog" className="btn-redline rl-btn-lg">
-            Jelajahi Katalog
-          </a>
-          <Link href="/cek-servis" className="btn-ghost rl-btn-lg">
-            Lacak Servis
-          </Link>
-        </div>
 
         <div className="rl-hero-stats">
           <div className="rl-hero-stat">
@@ -111,9 +105,9 @@ export default function HomePage() {
       </section>
 
       <section id="katalog" className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-16 space-y-8">
-        {promos.length > 0 && (
+        {displayedPromos.length > 0 && (
           <div data-reveal>
-            <PromoCarousel promos={promos} />
+            <PromoCarousel promos={displayedPromos} />
           </div>
         )}
 
@@ -179,66 +173,53 @@ export default function HomePage() {
                     className="rl-select text-sm"
                   >
                     <option value="">Semua Kategori</option>
-                    {categories.map((kat) => (
-                      <option key={kat.id} value={kat.id}>
-                        {kat.nama_kategori}
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.nama_kategori}
                       </option>
                     ))}
                   </select>
                 </div>
 
-                {(searchTerm || selectedCategory !== undefined) && (
-                  <div className="pt-2 text-center">
-                    <button
-                      type="button"
-                      onClick={handleResetFilter}
-                      className="text-xs text-neutral-500 hover:text-[#b01218] font-semibold underline bg-transparent border-0 cursor-pointer"
-                    >
-                      Reset Filter
-                    </button>
-                  </div>
+                {(selectedCategory || searchTerm) && (
+                  <button
+                    type="button"
+                    onClick={handleResetFilter}
+                    className="btn-ghost w-full text-xs text-neutral-500 hover:text-[#b01218]"
+                  >
+                    Reset Filter
+                  </button>
                 )}
               </div>
             </div>
           </div>
 
-          <div className="lg:col-span-9">
+          <div className="lg:col-span-9" data-reveal>
             {loading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 {[...Array(6)].map((_, i) => (
                   <div
                     key={i}
-                    className="h-60 rounded-xl bg-white border border-neutral-200 animate-pulse"
+                    className="rl-card h-80 animate-pulse bg-neutral-100/80"
                   />
                 ))}
               </div>
-            ) : products.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                {products.map((p, index) => (
-                  <div
-                    key={p.id}
-                    data-reveal
-                    style={{ '--reveal-d': `${(index % 3) * 80}ms` } as React.CSSProperties}
-                  >
-                    <ProductCard produk={p} />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="rl-card p-12 text-center text-neutral-500 space-y-3" data-reveal>
-                <h4 className="rl-title-md text-neutral-900 mb-1">
-                  Produk Tidak Ditemukan
-                </h4>
-                <p className="text-sm text-neutral-500 max-w-md mx-auto">
-                  Maaf, tidak ada produk yang cocok dengan kriteria filter Anda.
-                </p>
+            ) : products.length === 0 ? (
+              <div className="rl-card p-12 text-center text-neutral-400">
+                <p className="text-sm mb-2">Tidak ada produk yang cocok dengan filter.</p>
                 <button
                   type="button"
                   onClick={handleResetFilter}
-                  className="btn-ghost text-xs mt-2"
+                  className="text-xs text-[#b01218] font-bold hover:underline bg-transparent border-0 cursor-pointer"
                 >
-                  Reset Filter
+                  Tampilkan semua produk
                 </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {products.map((p) => (
+                  <ProductCard key={p.id} produk={p} />
+                ))}
               </div>
             )}
           </div>

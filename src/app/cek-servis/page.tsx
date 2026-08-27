@@ -5,7 +5,7 @@ import { fetchCekServis } from '@/lib/api';
 import { ServiceDetail } from '@/types';
 import ServiceTimeline from '@/components/ui/ServiceTimeline';
 import { createGeneralWhatsAppLink } from '@/lib/whatsapp';
-import { AlertCircle, CheckCircle, WifiOff, RefreshCw, MessageCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle, Wrench, RefreshCw, MessageCircle } from 'lucide-react';
 
 export default function CekServisPage() {
   const [resi, setResi] = useState('');
@@ -30,7 +30,7 @@ export default function CekServisPage() {
       if (res.isConnectionError) {
         setIsConnectionError(true);
       } else {
-        setError(res.message || 'Nomor resi tidak ditemukan dalam sistem.');
+        setError(res.message || 'Nomor resi tidak ditemukan dalam sistem database kami.');
       }
     }
     setLoading(false);
@@ -83,22 +83,23 @@ export default function CekServisPage() {
           </form>
 
           {error && !isConnectionError && (
-            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-xs font-semibold text-[#b01218] flex items-center justify-center gap-2 max-w-md mx-auto">
-              <AlertCircle className="w-4 h-4 shrink-0" />
+            <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs font-semibold text-amber-900 flex items-center justify-center gap-2 max-w-md mx-auto">
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
               <span>{error}</span>
             </div>
           )}
         </div>
 
+        {/* Maintenance / Service Database Unavailable State */}
         {isConnectionError && (
-          <div className="rl-card p-6 md:p-8 text-center space-y-4 border-red-200 bg-red-50/40" data-reveal>
-            <div className="w-14 h-14 rounded-full bg-red-100 text-[#b01218] flex items-center justify-center mx-auto">
-              <WifiOff className="w-7 h-7" />
+          <div className="rl-card p-6 md:p-8 text-center space-y-4 border-amber-300/80 bg-gradient-to-b from-amber-50/80 to-amber-50/30" data-reveal>
+            <div className="w-14 h-14 rounded-2xl bg-amber-100/90 text-amber-700 flex items-center justify-center mx-auto shadow-inner">
+              <Wrench className="w-7 h-7" />
             </div>
             <div className="space-y-1.5">
-              <h3 className="rl-title-md text-neutral-900">Koneksi Server Backend Terputus</h3>
-              <p className="text-xs text-neutral-600 max-w-md mx-auto leading-relaxed">
-                Pelacakan servis laptop/PC memerlukan koneksi langsung ke server database operasional Redline Komputer. Saat ini server backend sedang offline atau tidak dapat dihubungi.
+              <h3 className="rl-title-md text-amber-950">Layanan Servis &amp; Maintenance</h3>
+              <p className="text-xs text-amber-800/90 max-w-md mx-auto leading-relaxed">
+                Sistem database pelacakan servis sedang dalam tahap pemeliharaan rutin (Maintenance). Silakan coba beberapa saat lagi atau hubungi teknisi kami secara langsung.
               </p>
             </div>
             <div className="flex items-center justify-center gap-3 pt-2 flex-wrap">
@@ -106,10 +107,10 @@ export default function CekServisPage() {
                 type="button"
                 onClick={() => handleSubmit()}
                 disabled={loading}
-                className="btn-ghost text-xs font-semibold"
+                className="btn-ghost text-xs font-semibold border-amber-300 text-amber-900 hover:bg-amber-100"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-                <span>Coba Hubungkan Lagi</span>
+                <span>Coba Lagi</span>
               </button>
               <a
                 href={createGeneralWhatsAppLink()}
@@ -118,7 +119,7 @@ export default function CekServisPage() {
                 className="btn-redline text-xs font-bold"
               >
                 <MessageCircle className="w-4 h-4" />
-                <span>Tanya CS via WhatsApp</span>
+                <span>Tanya Status via WhatsApp</span>
               </a>
             </div>
           </div>

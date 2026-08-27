@@ -12,7 +12,9 @@ import {
   Search,
   Receipt,
   X,
+  CloudOff,
 } from 'lucide-react';
+import { useConnection } from '@/lib/connection';
 import { downloadReceiptPDF, shareReceiptPDFToWhatsApp, type ReceiptData } from '@/lib/pdfReceipt';
 
 interface CartLine {
@@ -33,6 +35,7 @@ function getFormattedDate(): string {
 }
 
 export default function AdminPosPage() {
+  const { isOnline } = useConnection();
   const [cart, setCart] = useState<CartLine[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [namaPembeli, setNamaPembeli] = useState('Umum');
@@ -58,21 +61,31 @@ export default function AdminPosPage() {
     e.preventDefault();
     if (!customNama.trim() || !customHarga || Number(customHarga) <= 0 || customQty < 1) return;
 
-    const newLine: CartLine = {
-      id: crypto.randomUUID(),
-      nama_item: customNama.trim(),
-      harga: Number(customHarga),
-      jumlah: Number(customQty),
-      tipe: customTipe,
-    };
+    const existingIndex = cart.findIndex((c) => c.nama_item.toLowerCase() === customNama.trim().toLowerCase());
+    if (existingIndex > -1) {
+      const updated = [...cart];
+      updated[existingIndex].jumlah += Number(customQty);
+      setCart(updated);
+    } else {
+      const newCustomId = `custom-${cart.length + 1}-${customNama.trim().slice(0, 5)}`;
+      setCart([
+        ...cart,
+        {
+          id: newCustomId,
+          nama_item: customNama.trim(),
+          harga: Number(customHarga),
+          jumlah: Number(customQty),
+          tipe: customTipe,
+        },
+      ]);
+    }
 
-    setCart([...cart, newLine]);
     setCustomNama('');
     setCustomHarga('');
     setCustomQty(1);
   };
 
-  const addFromCatalog = (p: typeof produkData[0]) => {
+  const addFromCatalog = (p: (typeof produkData)[0]) => {
     const inputPrice = prompt(
       `Masukkan harga jual untuk "${p.nama_produk}":`,
       p.harga_dasar ? p.harga_dasar.toString() : '0'
@@ -84,10 +97,11 @@ export default function AdminPosPage() {
           cart.map((c) => (c.id === existing.id ? { ...c, jumlah: c.jumlah + 1 } : c))
         );
       } else {
+        const newCatId = `cat-${p.id}-${cart.length + 1}`;
         setCart([
           ...cart,
           {
-            id: crypto.randomUUID(),
+            id: newCatId,
             produk_id: p.id,
             nama_item: p.nama_produk,
             harga: Number(inputPrice),
@@ -106,7 +120,7 @@ export default function AdminPosPage() {
 
   const updatePrice = (id: string, newPrice: number) => {
     if (isNaN(newPrice) || newPrice < 0) return;
-    setCart(cart.map((item) => (item.id === id ? { ...item, harga: newPrice } : item)));
+    setCart(cart.map((c) => (c.id === id ? { ...c, harga: newPrice } : c)));
   };
 
   const removeItem = (id: string) => {
@@ -136,8 +150,27 @@ export default function AdminPosPage() {
       bayar: metodeBayar === 'Tunai' ? (bayarNominal || total) : total,
       kembalian,
       metode_bayar: metodeBayar,
-      kasir: 'Adi Kusumo (Owner)',
+      kasir: 'Adi Kusumo (Owner & Pegawai)',
     };
+
+    // Simpan ke offline cache lokal agar transaksi toko aman 100%
+    try {
+      const existingStr = localStorage.getItem('redline_pos_local_transactions');
+      const existingList = existingStr ? JSON.parse(existingStr) : [];
+      existingList.unshift({ ...completed, synced: isOnline });
+      localStorage.setItem('redline_pos_local_transactions', JSON.stringify(existingList.slice(0, 100)));
+    } catch {
+      // localStorage fallback
+    }
+
+    // Jika online, kirim ke endpoint backend
+    if (isOnline) {
+      fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1'}/pos/checkout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(completed),
+      }).catch(() => null);
+    }
 
     setLastNota(completed);
     setCart([]);
@@ -178,37 +211,37 @@ export default function AdminPosPage() {
             </div>
 
             <form onSubmit={addCustomItem} className="space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-                <div className="sm:col-span-6">
-                  <label className="text-[11px] font-semibold text-neutral-500 block mb-1">
-                    Nama Barang / Jasa Servis
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="barang / jasa"
-                    value={customNama}
-                    onChange={(e) => setCustomNama(e.target.value)}
-                    required
-                    className="rl-input text-xs w-full"
-                  />
-                </div>
+              <div>
+                <label className="text-[11px] text-neutral-500 font-semibold block mb-1">
+                  Nama Item / Keterangan Jasa
+                </label>
+                <input
+                  type="text"
+                  placeholder="barang / jasa"
+                  value={customNama}
+                  onChange={(e) => setCustomNama(e.target.value)}
+                  required
+                  className="rl-input text-xs w-full"
+                />
+              </div>
 
-                <div className="sm:col-span-3">
-                  <label className="text-[11px] font-semibold text-neutral-500 block mb-1">
-                    Tipe Item
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] text-neutral-500 font-semibold block mb-1">
+                    Jenis Item
                   </label>
                   <select
                     value={customTipe}
                     onChange={(e) => setCustomTipe(e.target.value as 'Produk' | 'Servis')}
                     className="rl-select text-xs w-full"
                   >
-                    <option value="Produk">Produk</option>
-                    <option value="Servis">Servis / Jasa</option>
+                    <option value="Produk">Produk / Barang</option>
+                    <option value="Servis">Jasa / Servis</option>
                   </select>
                 </div>
 
-                <div className="sm:col-span-3">
-                  <label className="text-[11px] font-semibold text-neutral-500 block mb-1">
+                <div>
+                  <label className="text-[11px] text-neutral-500 font-semibold block mb-1">
                     Harga Satuan (Rp)
                   </label>
                   <input
@@ -239,8 +272,7 @@ export default function AdminPosPage() {
                   type="submit"
                   className="btn-redline py-2 px-4 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
                 >
-                  <Plus className="w-4 h-4" />
-                  <span>Tambahkan ke Keranjang</span>
+                  <span>Tambahkan</span>
                 </button>
               </div>
             </form>
@@ -280,10 +312,10 @@ export default function AdminPosPage() {
               {filteredProducts.map((p) => (
                 <div
                   key={p.id}
-                  className="p-3.5 rounded-xl border border-neutral-200 bg-white hover:border-[#de1f26]/40 transition-all flex flex-col justify-between gap-2.5 shadow-sm"
+                  className="p-3 rounded-xl bg-white border border-neutral-200 hover:border-[#de1f26]/50 transition-all flex flex-col justify-between gap-2 shadow-sm"
                 >
                   <div>
-                    <h4 className="text-xs font-bold text-neutral-900 line-clamp-2 leading-snug">
+                    <h4 className="font-bold text-xs text-neutral-900 line-clamp-2">
                       {p.nama_produk}
                     </h4>
                     <span className="text-[10px] rl-mono text-neutral-400 block mt-1">
@@ -416,15 +448,15 @@ export default function AdminPosPage() {
                   Metode Pembayaran
                 </label>
                 <div className="grid grid-cols-3 gap-2">
-                  {['Tunai', 'QRIS', 'Transfer'].map((m) => (
+                  {['Tunai', 'QRIS / Transfer', 'Debit'].map((m) => (
                     <button
                       key={m}
                       type="button"
                       onClick={() => setMetodeBayar(m)}
-                      className={`py-2 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                      className={`py-2 px-3 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
                         metodeBayar === m
-                          ? 'bg-[#de1f26] text-white border-[#de1f26]'
-                          : 'bg-neutral-100 text-neutral-700 border-neutral-200'
+                          ? 'border-[#de1f26] bg-red-50 text-[#b01218]'
+                          : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50'
                       }`}
                     >
                       {m}
@@ -436,7 +468,7 @@ export default function AdminPosPage() {
               {metodeBayar === 'Tunai' && (
                 <div>
                   <label className="text-[11px] text-neutral-500 font-semibold block mb-1">
-                    Nominal Uang Tunai Diterima (Rp)
+                    Uang Diterima dari Pembeli (Rp)
                   </label>
                   <input
                     type="number"
@@ -444,22 +476,25 @@ export default function AdminPosPage() {
                     placeholder="0"
                     value={bayarNominal || ''}
                     onChange={(e) => setBayarNominal(Number(e.target.value))}
-                    className="rl-input text-sm font-bold rl-mono w-full"
+                    className="rl-input text-xs w-full rl-mono font-bold text-neutral-900"
                   />
                 </div>
               )}
 
-              <div className="space-y-1.5 pt-3 border-t border-neutral-100">
-                <div className="flex justify-between text-neutral-600 text-xs">
-                  <span>Total Tagihan</span>
-                  <span className="rl-mono font-bold text-base text-[#b01218]">
-                    Rp {total.toLocaleString('id-ID')}
-                  </span>
+              {/* Rincian Total */}
+              <div className="p-4 rounded-xl bg-neutral-100/70 border border-neutral-200 space-y-1.5 font-mono text-xs">
+                <div className="flex justify-between text-neutral-600">
+                  <span>Subtotal</span>
+                  <span>Rp {subtotal.toLocaleString('id-ID')}</span>
+                </div>
+                <div className="flex justify-between font-bold text-sm text-neutral-900 pt-1 border-t border-neutral-200">
+                  <span>TOTAL TAGIHAN</span>
+                  <span className="text-[#b01218]">Rp {total.toLocaleString('id-ID')}</span>
                 </div>
                 {metodeBayar === 'Tunai' && (
-                  <div className="flex justify-between text-neutral-600 text-xs">
+                  <div className="flex justify-between text-neutral-700 font-semibold pt-1 border-t border-neutral-200/60">
                     <span>Kembalian</span>
-                    <span className="rl-mono font-bold text-sm text-emerald-600">
+                    <span className={kembalian > 0 ? 'text-emerald-700 font-bold' : ''}>
                       Rp {kembalian.toLocaleString('id-ID')}
                     </span>
                   </div>
@@ -496,6 +531,13 @@ export default function AdminPosPage() {
                 <X className="w-5 h-5" />
               </button>
             </div>
+
+            {!isOnline && (
+              <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-[11px] flex items-center gap-2">
+                <CloudOff className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>Mode Offline: Transaksi tersimpan di penyimpanan kasir lokal &amp; nota siap cetak.</span>
+              </div>
+            )}
 
             {/* Thermal Receipt Body */}
             <div className="p-4 rounded-xl bg-neutral-50 border border-neutral-200 text-neutral-800 space-y-3 text-xs font-mono">

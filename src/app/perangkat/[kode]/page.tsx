@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { fetchPerangkat } from '@/lib/api';
 import { createGeneralWhatsAppLink } from '@/lib/whatsapp';
-import { QrCode, Laptop, User, Calendar, Cpu, Wrench, WifiOff, MessageCircle } from 'lucide-react';
+import { QrCode, Laptop, User, Calendar, Cpu, Wrench, MessageCircle } from 'lucide-react';
 
 export default async function PerangkatLifecyclePage({
   params,
@@ -15,18 +15,18 @@ export default async function PerangkatLifecyclePage({
   if (res.isConnectionError) {
     return (
       <div className="max-w-xl mx-auto px-4 py-16 text-center space-y-6">
-        <div className="rl-card p-8 space-y-4 border-red-200 bg-red-50/40">
-          <div className="w-14 h-14 rounded-full bg-red-100 text-[#b01218] flex items-center justify-center mx-auto">
-            <WifiOff className="w-7 h-7" />
+        <div className="rl-card p-8 space-y-4 border-amber-300/80 bg-gradient-to-b from-amber-50/80 to-amber-50/30">
+          <div className="w-14 h-14 rounded-2xl bg-amber-100/90 text-amber-700 flex items-center justify-center mx-auto shadow-inner">
+            <Wrench className="w-7 h-7" />
           </div>
           <div className="space-y-1.5">
-            <h1 className="text-xl font-bold text-neutral-900">Koneksi Server Backend Terputus</h1>
-            <p className="text-xs text-neutral-600 max-w-sm mx-auto leading-relaxed">
-              Gagal memverifikasi riwayat barcode perangkat <span className="rl-mono font-bold text-[#b01218]">{kode}</span> karena tidak dapat terhubung ke database backend Redline.
+            <h1 className="text-xl font-bold text-amber-950">Layanan Servis &amp; Maintenance</h1>
+            <p className="text-xs text-amber-800/90 max-w-sm mx-auto leading-relaxed">
+              Sistem database perbaikan perangkat <span className="rl-mono font-bold text-[#b01218]">{kode}</span> sedang dalam tahap pemeliharaan sistem (Maintenance).
             </p>
           </div>
           <div className="pt-4 flex items-center justify-center gap-3 flex-wrap">
-            <Link href="/" className="btn-ghost text-xs">
+            <Link href="/" className="btn-ghost text-xs border-amber-300 text-amber-900 hover:bg-amber-100">
               &larr; Kembali ke Beranda
             </Link>
             <a
@@ -36,7 +36,7 @@ export default async function PerangkatLifecyclePage({
               className="btn-redline text-xs font-bold"
             >
               <MessageCircle className="w-4 h-4" />
-              <span>Tanya CS WhatsApp</span>
+              <span>Tanya Status via WhatsApp</span>
             </a>
           </div>
         </div>

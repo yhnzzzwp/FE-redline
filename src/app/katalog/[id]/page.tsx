@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { fetchProdukDetail } from '@/lib/api';
 import { createWhatsAppLink } from '@/lib/whatsapp';
+import { Produk } from '@/types';
 import ProductCard from '@/components/ui/ProductCard';
 import { MessageCircle, ShieldCheck, Award, MessageSquare } from 'lucide-react';
 
@@ -38,74 +39,59 @@ export default async function ProductDetailPage({
       <div className="rl-card p-6 md:p-8 space-y-6" data-reveal>
         <div>
           <div className="text-xs text-neutral-500 mb-2">
-            {produk.kategori?.nama_kategori || 'Umum'} &middot; SKU:{' '}
-            <span className="rl-mono font-medium tnum">{produk.sku || '—'}</span>
+            <span className="font-semibold text-neutral-800">
+              {produk.kategori?.nama_kategori || 'Hardware'}
+            </span>
+            {produk.sku && (
+              <>
+                <span className="mx-2">&middot;</span>
+                <span className="rl-mono text-neutral-400">SKU: {produk.sku}</span>
+              </>
+            )}
           </div>
-
-          <h1 className="rl-page-title mb-4">{produk.nama_produk}</h1>
-
-          <div className="rl-spec-grid mb-6">
-            <div className="rl-spec">
-              <div className="rl-spec-label">Kategori</div>
-              <div className="rl-spec-value">
-                {produk.kategori?.nama_kategori || 'Umum'}
-              </div>
-            </div>
-            <div className="rl-spec">
-              <div className="rl-spec-label">SKU</div>
-              <div className="rl-spec-value rl-mono tnum">
-                {produk.sku || '—'}
-              </div>
-            </div>
-            <div className="rl-spec">
-              <div className="rl-spec-label">Garansi</div>
-              <div className="rl-spec-value">Resmi</div>
-            </div>
-            <div className="rl-spec">
-              <div className="rl-spec-label">Kondisi</div>
-              <div className="rl-spec-value">Baru &amp; Original</div>
-            </div>
-          </div>
-
-          <div className="space-y-2 mb-6">
-            <h3 className="rl-section-title text-sm">Deskripsi Produk</h3>
-            <p className="text-neutral-600 text-sm leading-relaxed whitespace-pre-wrap">
-              {produk.deskripsi_produk || 'Belum ada deskripsi untuk produk ini.'}
-            </p>
-          </div>
-
-          <div className="pt-4 border-t border-neutral-100 space-y-3">
-            <a
-              href={waLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-redline w-full py-3.5 text-sm font-bold"
-            >
-              <MessageCircle className="w-5 h-5 shrink-0" />
-              <span>Tanya via WhatsApp</span>
-            </a>
-            <p className="text-xs text-neutral-400 text-center mb-0">
-              Transaksi dilakukan di luar sistem. Hubungi admin via WhatsApp untuk informasi lebih lanjut.
-            </p>
-          </div>
+          <h1 className="rl-title-lg text-2xl md:text-3xl text-neutral-900 font-bold">
+            {produk.nama_produk}
+          </h1>
         </div>
-      </div>
 
-      <div className="rl-card p-5" data-reveal>
-        <div className="rl-trust justify-around">
-          {trustItems.map((t) => {
-            const Icon = t.icon;
+        <div className="grid grid-cols-3 gap-3 py-4 border-y border-neutral-100">
+          {trustItems.map((item, i) => {
+            const Icon = item.icon;
             return (
-              <div key={t.label} className="rl-trust-item">
-                <span className="rl-trust-ico">
-                  <Icon className="w-5 h-5 text-[#b01218]" />
-                </span>
-                <span className="font-semibold text-neutral-800 text-sm">
-                  {t.label}
+              <div key={i} className="text-center space-y-1">
+                <Icon className="w-5 h-5 mx-auto text-[#de1f26]" />
+                <span className="text-xs font-semibold text-neutral-600 block">
+                  {item.label}
                 </span>
               </div>
             );
           })}
+        </div>
+
+        <div className="space-y-3">
+          <h2 className="rl-section-title">Spesifikasi &amp; Deskripsi</h2>
+          <div className="text-neutral-600 text-sm leading-relaxed whitespace-pre-line bg-neutral-50 p-4 rounded-xl border border-neutral-100">
+            {produk.deskripsi_produk || 'Hubungi kami untuk informasi detail spesifikasi produk ini.'}
+          </div>
+        </div>
+
+        <div className="pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-neutral-100">
+          <div>
+            <div className="text-xs text-neutral-500">Harga &amp; Ketersediaan</div>
+            <div className="text-sm font-semibold text-neutral-800">
+              Hubungi CS untuk penawaran terbaik &amp; stok real-time
+            </div>
+          </div>
+
+          <a
+            href={waLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-redline text-sm font-bold inline-flex items-center justify-center gap-2 py-3 px-6 no-underline text-center"
+          >
+            <MessageCircle className="w-4 h-4" />
+            <span>Tanya Stok &amp; Beli via WA</span>
+          </a>
         </div>
       </div>
 
@@ -113,7 +99,7 @@ export default async function ProductDetailPage({
         <section className="space-y-4 pt-6" data-reveal>
           <h2 className="rl-title-lg">Produk Lainnya</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {terkait.slice(0, 6).map((p, index) => (
+            {terkait.slice(0, 6).map((p: Produk, index: number) => (
               <div
                 key={p.id}
                 data-reveal
