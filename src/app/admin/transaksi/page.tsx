@@ -4,7 +4,9 @@ import { useState } from 'react';
 import { useApiData, daftar } from '@/lib/useApiData';
 import { selCsv } from '@/lib/csv';
 import { useConnection } from '@/lib/connection';
-import { Search, Download, Receipt, Share2, X, WifiOff } from 'lucide-react';
+import { Search, Download, Receipt, Share2, X, WifiOff, Ban, Loader2 } from 'lucide-react';
+import { authFetch } from '@/lib/api';
+import { useSession } from '@/lib/session';
 import { downloadReceiptPDF, shareReceiptPDFToWhatsApp, type ReceiptData } from '@/lib/pdfReceipt';
 
 interface TransaksiItem {
@@ -42,15 +44,51 @@ export default function AdminTransaksiPage() {
   // Diambil dari backend, bukan lagi dari src/data/transaksi.json — fixture
   // itu berisi nama dan nomor telepon pembeli dan ikut terkirim ke bundle
   // JavaScript setiap pengunjung.
-  const { data, loading, error } = useApiData<TransaksiRecord[]>(
+  const { data, loading, error, muatUlang } = useApiData<TransaksiRecord[]>(
     '/admin/transaksi?per_page=100',
     (json) => daftar<TransaksiRecord>(json)
   );
+  const { isOwner } = useSession();
   const transactions = data ?? [];
   const [cari, setCari] = useState('');
   const [selectedJenis, setSelectedJenis] = useState('');
   const [selectedTanggal, setSelectedTanggal] = useState('');
   const [activeReceipt, setActiveReceipt] = useState<TransaksiRecord | null>(null);
+  const [sedangBatal, setSedangBatal] = useState<number | null>(null);
+  const [galatBatal, setGalatBatal] = useState<string | null>(null);
+
+  /**
+   * Batalkan transaksi.
+   *
+   * Backend menandainya Void DAN mengembalikan kuota promo yang sudah terpakai,
+   * dengan penguncian baris supaya dua klik bersamaan tidak mengembalikan kuota
+   * dua kali. Hanya Owner yang boleh — penegaknya grup 'owner.api' di backend;
+   * penyembunyian tombol di sini sekadar agar Karyawan tidak menemui penolakan
+   * yang membingungkan.
+   */
+  const batalkan = async (t: TransaksiRecord) => {
+    const yakin = window.confirm(
+      `Batalkan nota ${t.kode_nota} senilai Rp ${t.total.toLocaleString('id-ID')}?\n\n` +
+        'Transaksi tetap tercatat sebagai riwayat dengan status Batal, dan kuota promo yang terpakai dikembalikan. Tindakan ini tidak bisa diurungkan.'
+    );
+    if (!yakin) return;
+
+    setSedangBatal(t.id);
+    setGalatBatal(null);
+    try {
+      const res = await authFetch(`/admin/transaksi/${t.id}/void`, { method: 'POST' });
+      if (!res.ok) {
+        const json = await res.json().catch(() => null);
+        setGalatBatal(json?.message ?? 'Transaksi gagal dibatalkan.');
+        return;
+      }
+      muatUlang();
+    } catch {
+      setGalatBatal('Server tidak dapat dihubungi.');
+    } finally {
+      setSedangBatal(null);
+    }
+  };
 
   const activeData = isOnline ? transactions : [];
 
@@ -164,6 +202,12 @@ export default function AdminTransaksiPage() {
           <span>
             <strong>Mode Offline:</strong> Mohon maaf, tidak ada koneksi dengan database server. Riwayat transaksi online dinonaktifkan sementara.
           </span>
+        </div>
+      )}
+
+      {galatBatal && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800">
+          {galatBatal}
         </div>
       )}
 
@@ -288,11 +332,7 @@ export default function AdminTransaksiPage() {
                       Rp {t.total.toLocaleString('id-ID')}
                     </td>
                     <td className="py-3 px-4 text-center">
-                      {t.status.toLowerCase() === 'batal' ? (
-                        <span className="rl-pill rl-pill-red text-[10px]">BATAL</span>
-                      ) : (
-                        <span className="rl-pill rl-pill-green text-[10px]">LUNAS</span>
-                      )}
+                      <LencanaStatus status={t.status} />
                     </td>
                     <td className="py-3 px-4 text-center">
                       <div className="flex items-center justify-center gap-1.5">
@@ -313,6 +353,22 @@ export default function AdminTransaksiPage() {
                         >
                           <Share2 className="w-4 h-4" />
                         </button>
+
+                        {isOwner && t.status === 'Normal' && (
+                          <button
+                            type="button"
+                            onClick={() => void batalkan(t)}
+                            disabled={sedangBatal === t.id}
+                            title={`Batalkan nota ${t.kode_nota}`}
+                            className="p-1.5 rounded-lg text-neutral-400 hover:text-red-600 hover:bg-red-50 transition-colors border-0 bg-transparent cursor-pointer disabled:opacity-50"
+                          >
+                            {sedangBatal === t.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Ban className="w-4 h-4" />
+                            )}
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -416,4 +472,25 @@ export default function AdminTransaksiPage() {
       )}
     </div>
   );
+}
+
+/**
+ * Lencana status transaksi.
+ *
+ * Nilai yang dikirim backend adalah enum TransaksiStatus: 'Normal', 'Void',
+ * atau 'Refund'. Versi sebelumnya membandingkannya dengan 'batal' — string yang
+ * tidak pernah dikirim — sehingga transaksi yang SUDAH dibatalkan tetap
+ * berlencana hijau LUNAS. Dengan adanya tombol pembatalan, kekeliruan itu
+ * membuat tindakan owner tampak tidak berpengaruh sama sekali.
+ */
+function LencanaStatus({ status }: { status: string }) {
+  const s = status.toLowerCase();
+
+  if (s === 'void' || s === 'batal') {
+    return <span className="rl-pill rl-pill-red text-[10px]">BATAL</span>;
+  }
+  if (s === 'refund') {
+    return <span className="rl-pill rl-pill-amber text-[10px]">REFUND</span>;
+  }
+  return <span className="rl-pill rl-pill-green text-[10px]">LUNAS</span>;
 }
