@@ -26,9 +26,12 @@ const nextConfig: NextConfig = {
             key: "X-Content-Type-Options",
             value: "nosniff",
           },
+          // Filter XSS bawaan browser lama sudah usang dan pernah menjadi
+          // sumber kerentanan tersendiri; '0' adalah nilai yang benar sekarang.
+          // Harus sama dengan yang di-set src/proxy.ts agar tidak berbeda.
           {
             key: "X-XSS-Protection",
-            value: "1; mode=block",
+            value: "0",
           },
           {
             key: "Referrer-Policy",

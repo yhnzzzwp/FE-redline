@@ -1,7 +1,6 @@
 import { getPendingTransactions, markAsSynced, markAsConflict } from './storage';
+import { authFetch } from './api';
 import type { TransaksiPending } from './db';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1';
 
 // ─── Types ─────────────────────────────────────────────────────────
 interface SyncResultItem {
@@ -60,11 +59,20 @@ export async function syncPendingTransactions(): Promise<SyncReport> {
     // Kirim batch ke server
     const payload = pending.map(txToPayload);
 
-    const res = await fetch(`${API_BASE}/pos/sync`, {
+    const res = await authFetch('/pos/sync', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ transaksi: payload }),
     });
+
+    // Endpoint sync sekarang butuh Bearer token. Transaksi TIDAK ditandai
+    // synced saat sesi mati — biarkan tetap pending supaya tidak ada
+    // penjualan yang hilang, dan beri tahu kasir untuk masuk kembali.
+    if (res.status === 401) {
+      report.errors.push(
+        'Sesi berakhir. Masuk kembali untuk menyinkronkan transaksi offline. Transaksi tetap tersimpan.'
+      );
+      return report;
+    }
 
     if (!res.ok) {
       report.errors.push(`Server error: ${res.status} ${res.statusText}`);

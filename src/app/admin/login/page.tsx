@@ -21,16 +21,12 @@ export default function AdminLoginPage() {
     setLoading(true);
 
     try {
-      const res = await loginUser('admin', username, password);
+      const res = await loginUser('admin', username, password, remember);
 
-      if (res.success && res.token) {
-        const isProd = process.env.NODE_ENV === 'production';
-        const maxAge = remember ? 86400 * 30 : 86400;
-        let cookieString = `admin-token=${res.token}; path=/; max-age=${maxAge}; SameSite=Strict`;
-        if (isProd) {
-          cookieString += '; Secure';
-        }
-        document.cookie = cookieString;
+      if (res.success) {
+        // Tidak ada penanganan token di sini lagi. Route Handler di server
+        // sudah memasang cookie sesi HttpOnly; halaman ini tidak pernah
+        // melihat tokennya, jadi tidak ada yang bisa dicuri lewat XSS.
         router.push('/admin');
       } else {
         setError(res.message || 'Username atau password salah.');

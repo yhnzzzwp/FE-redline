@@ -1,11 +1,12 @@
 'use client';
 
+import { OwnerOnly } from '@/lib/session';
 import { useState } from 'react';
 import promoData from '@/data/promo.json';
 import { useConnection } from '@/lib/connection';
 import { Search, X, WifiOff } from 'lucide-react';
 
-export default function AdminPromoPage() {
+function AdminPromoPage() {
   const { isOnline } = useConnection();
   const [promos] = useState(promoData);
   const [cari, setCari] = useState('');
@@ -149,5 +150,18 @@ export default function AdminPromoPage() {
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Halaman khusus Owner. Penegak sebenarnya tetap backend (grup 'owner.api'
+ * di routes/api.php) — pembungkus ini mencegah antarmuka Owner dirender
+ * untuk Karyawan, yang sebelumnya tidak diperiksa sama sekali.
+ */
+export default function Page() {
+  return (
+    <OwnerOnly>
+      <AdminPromoPage />
+    </OwnerOnly>
   );
 }

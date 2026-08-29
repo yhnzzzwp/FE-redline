@@ -4,12 +4,13 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://redline-backend:8080/api/v1}
         NEXT_PUBLIC_WA_PHONE: ${NEXT_PUBLIC_WA_PHONE:-6281234567890}
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
+      # Server-only: dibaca Route Handler, tidak masuk bundle browser.
+      - API_BASE_URL=${API_BASE_URL:-http://redline-web/api/v1}
     restart: unless-stopped
     networks:
       - redline-network

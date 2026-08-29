@@ -1,6 +1,17 @@
 import { Kategori, PerangkatDetail, Produk, Promo, ServiceDetail } from '@/types';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1';
+/**
+ * Di SERVER: langsung ke Laravel memakai API_BASE_URL (variabel server-only,
+ * tidak ikut ke bundle browser).
+ * Di BROWSER: selalu lewat proksi same-origin /api/backend, sehingga alamat
+ * backend tidak pernah terpapar dan token tetap di cookie HttpOnly.
+ */
+const SERVER_API_BASE = process.env.API_BASE_URL || 'http://localhost:8080/api/v1';
+const BROWSER_API_BASE = '/api/backend';
+
+function apiBase(): string {
+  return typeof window === 'undefined' ? SERVER_API_BASE : BROWSER_API_BASE;
+}
 
 export const dummyKategori: Kategori[] = [
   { id: 1, nama_kategori: 'Prosesor (CPU)', deskripsi_kategori: 'Prosesor Intel & AMD Ryzen', produk_count: 2 },
@@ -134,7 +145,7 @@ export async function fetchKatalog(params?: {
   page?: number;
 }): Promise<{ data: Produk[]; pagination: { current_page: number; last_page: number; total: number } }> {
   try {
-    const url = new URL(`${API_BASE}/katalog`);
+    const url = new URL(`${apiBase()}/katalog`, typeof window === 'undefined' ? undefined : window.location.origin);
     if (params?.kategori) url.searchParams.set('kategori', params.kategori.toString());
     if (params?.cari) url.searchParams.set('cari', params.cari);
     if (params?.page) url.searchParams.set('page', params.page.toString());
@@ -180,7 +191,7 @@ export async function fetchProdukDetail(
   id: number | string
 ): Promise<{ produk: Produk | null; terkait: Produk[] }> {
   try {
-    const res = await fetch(`${API_BASE}/katalog/${id}`, { next: { revalidate: 60 } });
+    const res = await fetch(`${apiBase()}/katalog/${id}`, { next: { revalidate: 60 } });
     if (res.ok) {
       const json = await res.json();
       if (json.data) {
@@ -204,7 +215,7 @@ export async function fetchProdukDetail(
 
 export async function fetchKategori(): Promise<Kategori[]> {
   try {
-    const res = await fetch(`${API_BASE}/kategori`, { next: { revalidate: 300 } });
+    const res = await fetch(`${apiBase()}/kategori`, { next: { revalidate: 300 } });
     if (res.ok) {
       const json = await res.json();
       if (json.data && json.data.length > 0) return json.data;
@@ -217,7 +228,7 @@ export async function fetchKategori(): Promise<Kategori[]> {
 
 export async function fetchPromos(): Promise<Promo[]> {
   try {
-    const res = await fetch(`${API_BASE}/promo`, { next: { revalidate: 60 } });
+    const res = await fetch(`${apiBase()}/promo`, { next: { revalidate: 60 } });
     if (res.ok) {
       const json = await res.json();
       if (json.data && json.data.length > 0) return json.data;
@@ -236,7 +247,7 @@ export async function fetchCekServis(
     const timeoutId = setTimeout(() => controller.abort(), 6000);
 
     const res = await fetch(
-      `${API_BASE}/service/cek?nomor_resi=${encodeURIComponent(nomor_resi)}`,
+      `${apiBase()}/service/cek?nomor_resi=${encodeURIComponent(nomor_resi)}`,
       {
         cache: 'no-store',
         signal: controller.signal,
@@ -271,7 +282,7 @@ export async function fetchPerangkat(
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 6000);
 
-    const res = await fetch(`${API_BASE}/perangkat/${encodeURIComponent(kode)}`, {
+    const res = await fetch(`${apiBase()}/perangkat/${encodeURIComponent(kode)}`, {
       cache: 'no-store',
       signal: controller.signal,
     });
@@ -297,104 +308,103 @@ export async function fetchPerangkat(
   }
 }
 
-export async function syncPosTransactions(transactions: unknown[]): Promise<{ status: string; synced?: unknown[]; errors?: unknown[] }> {
+// ─── Autentikasi lewat BFF (Backend-for-Frontend) ──────────────────
+//
+// Token sesi TIDAK pernah menyentuh JavaScript. Ia disimpan sebagai cookie
+// HttpOnly oleh Route Handler di server, dan Route Handler pula yang
+// melampirkannya sebagai Bearer saat meneruskan permintaan ke Laravel.
+// Konsekuensinya: skrip berbahaya yang berhasil dieksekusi di halaman ini
+// tetap tidak bisa membaca maupun mengekstraksi token.
+
+/** Panggilan ke endpoint terproteksi. Selalu same-origin. */
+export async function authFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  const headers = new Headers(init.headers);
+  if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+
+  return fetch(`/api/backend${path}`, {
+    ...init,
+    headers,
+    cache: 'no-store',
+    credentials: 'same-origin',
+  });
+}
+
+export async function syncPosTransactions(
+  transactions: unknown[]
+): Promise<{ status: string; synced?: unknown[]; errors?: unknown[] }> {
   try {
-    const res = await fetch(`${API_BASE}/pos/sync`, {
+    const res = await authFetch('/pos/sync', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ transaksi: transactions }),
     });
+
+    if (res.status === 401) {
+      return {
+        status: 'error',
+        errors: ['Sesi berakhir. Masuk kembali untuk menyinkronkan transaksi offline.'],
+      };
+    }
+
     return await res.json();
   } catch (error) {
-    return { status: 'error', errors: [error] };
+    return {
+      status: 'error',
+      errors: [error instanceof Error ? error.message : 'Gagal terhubung ke server'],
+    };
   }
 }
 
 /**
- * Helper SHA-256 Browser WebCrypto untuk verifikasi kredensial offline yang aman
- */
-async function hashSHA256(text: string): Promise<string> {
-  if (typeof window === 'undefined' || !window.crypto?.subtle) {
-    return text;
-  }
-  const encoder = new TextEncoder();
-  const data = encoder.encode(text);
-  const hash = await window.crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(hash))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
-}
-
-// Hash SHA-256 dari 'password' untuk verifikasi offline lokal toko
-const OFFLINE_PASS_HASH = '5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8';
-
-/**
- * Otentikasi Hibrida (Online API Prioritas + Offline Standalone Fallback).
- * 1. Saat Online: Terhubung ke server backend & database live.
- * 2. Saat Offline: Melakukan verifikasi lokal berbasis hash cryptographic agar operasional kasir toko tidak terputus.
+ * Login. Mengembalikan status dan peran saja — TIDAK mengembalikan token,
+ * dan pemanggil tidak perlu (dan tidak bisa) menyetel cookie sendiri.
  */
 export async function loginUser(
   portal: 'admin' | 'karyawan',
   username: string,
-  password: string
-): Promise<{ success: boolean; token?: string; role?: string; message?: string; isOfflineSession?: boolean }> {
-  // 1. Coba verifikasi Online via REST API Backend
+  password: string,
+  remember = false
+): Promise<{ success: boolean; role?: string; message?: string }> {
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4000);
-
-    const res = await fetch(`${API_BASE}/auth/login`, {
+    const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password, portal }),
-      signal: controller.signal,
+      body: JSON.stringify({ username, password, portal, remember }),
+      cache: 'no-store',
+      credentials: 'same-origin',
     });
-    clearTimeout(timeoutId);
 
-    if (res.ok) {
-      const json = await res.json();
-      if (json.status === 'success' && json.data?.token) {
-        return { success: true, token: json.data.token, role: json.data.user?.role, isOfflineSession: false };
-      }
-      return {
-        success: false,
-        message: json.message || 'Username atau password tidak sesuai.',
-      };
+    const json = await res.json().catch(() => null);
+
+    if (res.ok && json?.status === 'success') {
+      return { success: true, role: json.data?.user?.role };
     }
+
+    return { success: false, message: json?.message || 'Username atau password salah.' };
   } catch {
-    // Backend API offline / terputus -> Lanjutkan ke Mode Offline Toko Mandiri
-  }
-
-  // 2. Fallback Mode Offline Toko Mandiri (Zero Downtime)
-  const u = username.toLowerCase().trim();
-  const passHash = await hashSHA256(password);
-
-  const isValidUser =
-    u === 'owner' ||
-    u === 'admin' ||
-    u === 'rijal' ||
-    u === 'budi' ||
-    u === 'siti' ||
-    u === 'andi' ||
-    u.includes('redline');
-
-  if (isValidUser && passHash === OFFLINE_PASS_HASH) {
-    const offlineRole = u === 'owner' || u === 'admin' ? 'Owner' : 'Karyawan';
-    const offlineToken = `offline-token-${Date.now()}`;
     return {
-      success: true,
-      token: offlineToken,
-      role: offlineRole,
-      isOfflineSession: true,
+      success: false,
+      message: 'Tidak dapat terhubung ke server Redline. Login membutuhkan koneksi.',
     };
   }
-
-  return {
-    success: false,
-    message: 'Username atau password salah. (Kredensial toko: username pegawai & password)',
-  };
 }
 
-export async function loginAdmin(username: string, password: string): Promise<{ success: boolean; token?: string; message?: string }> {
-  return loginUser('admin', username, password);
+/** Cabut token di backend lalu hapus cookie sesi. */
+export async function logoutUser(): Promise<void> {
+  try {
+    await fetch('/api/auth/logout', {
+      method: 'POST',
+      cache: 'no-store',
+      credentials: 'same-origin',
+    });
+  } catch {
+    // Abaikan: cookie tetap dibuang server saat permintaan berikutnya gagal.
+  }
+}
+
+export async function loginAdmin(
+  username: string,
+  password: string,
+  remember = false
+): Promise<{ success: boolean; role?: string; message?: string }> {
+  return loginUser('admin', username, password, remember);
 }

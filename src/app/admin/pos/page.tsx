@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import produkData from '@/data/produk.json';
+import { authFetch } from '@/lib/api';
+import { useSession } from '@/lib/session';
 import {
   ShoppingBag,
   Plus,
@@ -35,6 +37,7 @@ function getFormattedDate(): string {
 }
 
 export default function AdminPosPage() {
+  const { user } = useSession();
   const { isOnline } = useConnection();
   const [cart, setCart] = useState<CartLine[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -150,7 +153,10 @@ export default function AdminPosPage() {
       bayar: metodeBayar === 'Tunai' ? (bayarNominal || total) : total,
       kembalian,
       metode_bayar: metodeBayar,
-      kasir: 'Adi Kusumo (Owner & Pegawai)',
+      // Kasir diambil dari sesi yang sedang login. Sebelumnya ter-hardcode,
+      // sehingga setiap struk mencantumkan nama yang sama siapa pun yang
+      // menjaga kasir — sekaligus membocorkan nama itu ke bundle publik.
+      kasir: user?.nama_pegawai ?? 'Kasir Redline',
     };
 
     // Simpan ke offline cache lokal agar transaksi toko aman 100%
@@ -165,9 +171,11 @@ export default function AdminPosPage() {
 
     // Jika online, kirim ke endpoint backend
     if (isOnline) {
-      fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1'}/pos/checkout`, {
+      // /pos/checkout terproteksi — panggil lewat authFetch supaya header
+      // Authorization ikut terkirim. Sebelumnya dikirim tanpa token sehingga
+      // selalu ditolak 401 dan penjualan tidak pernah tercatat di server.
+      authFetch('/pos/checkout', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(completed),
       }).catch(() => null);
     }

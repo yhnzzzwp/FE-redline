@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import transaksiData from '@/data/transaksi.json';
+import { useApiData, daftar } from '@/lib/useApiData';
 import { useConnection } from '@/lib/connection';
 import { Search, Download, Receipt, Share2, X, WifiOff } from 'lucide-react';
 import { downloadReceiptPDF, shareReceiptPDFToWhatsApp, type ReceiptData } from '@/lib/pdfReceipt';
@@ -34,7 +34,14 @@ interface TransaksiRecord {
 
 export default function AdminTransaksiPage() {
   const { isOnline } = useConnection();
-  const [transactions] = useState<TransaksiRecord[]>(transaksiData);
+  // Diambil dari backend, bukan lagi dari src/data/transaksi.json — fixture
+  // itu berisi nama dan nomor telepon pembeli dan ikut terkirim ke bundle
+  // JavaScript setiap pengunjung.
+  const { data, loading, error } = useApiData<TransaksiRecord[]>(
+    '/admin/transaksi?per_page=100',
+    (json) => daftar<TransaksiRecord>(json)
+  );
+  const transactions = data ?? [];
   const [cari, setCari] = useState('');
   const [selectedJenis, setSelectedJenis] = useState('');
   const [selectedTanggal, setSelectedTanggal] = useState('');
@@ -115,6 +122,16 @@ export default function AdminTransaksiPage() {
 
   return (
     <div className="space-y-6">
+      {loading && (
+        <div className="p-3 bg-neutral-50 border border-neutral-200 rounded-xl text-xs text-neutral-500">
+          Memuat data transaksi dari server&hellip;
+        </div>
+      )}
+      {error && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800">
+          {error}
+        </div>
+      )}
       <div className="rl-page-header flex items-start justify-between flex-wrap gap-3">
         <div>
           <h1 className="rl-page-title mb-1">Daftar Transaksi</h1>
