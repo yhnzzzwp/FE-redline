@@ -10,7 +10,19 @@ services:
     environment:
       - NODE_ENV=production
       # Server-only: dibaca Route Handler, tidak masuk bundle browser.
-      - API_BASE_URL=${API_BASE_URL:-http://redline-web/api/v1}
+      #
+      # Bawaannya menembak backend lewat gateway host, BUKAN IP LAN dan bukan
+      # "localhost". "localhost" di dalam container menunjuk container itu
+      # sendiri, sedangkan IP LAN berubah setiap server dinyalakan di jaringan
+      # lain — dua-duanya membuat backend tak terjangkau dari container ini.
+      # host.docker.internal dipetakan Docker ke gateway bridge saat start,
+      # jadi tetap benar di jaringan mana pun.
+      #
+      # Nama service "redline-web" hanya bisa dipakai bila container ini ikut
+      # jaringan compose backend (redline_redline) — secara bawaan tidak.
+      - API_BASE_URL=${API_BASE_URL:-http://host.docker.internal:8000/api/v1}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
     networks:
       - redline-network
