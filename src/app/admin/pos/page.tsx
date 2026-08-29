@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import produkData from '@/data/produk.json';
+import { useEffect, useMemo, useState } from 'react';
 import { useSession } from '@/lib/session';
+import { useApiData } from '@/lib/useApiData';
 import { savePendingTransaction, countPending } from '@/lib/storage';
 import { syncPendingTransactions } from '@/lib/sync';
 import {
@@ -23,10 +23,44 @@ import { downloadReceiptPDF, shareReceiptPDFToWhatsApp, type ReceiptData } from 
 interface CartLine {
   id: string;
   produk_id?: number;
+  /**
+   * Wajib untuk baris servis yang berasal dari tiket.
+   *
+   * Tanpa ini backend hanya mencatat uangnya: tiket servisnya tidak pernah
+   * tertaut ke transaksi dan unitnya tidak pernah ditandai sudah diambil.
+   * Harga baris servis juga ditetapkan ulang oleh server dari tiketnya —
+   * perangkat kasir tidak dipercaya untuk itu.
+   */
+  service_id?: number;
   nama_item: string;
   harga: number;
   jumlah: number;
   tipe: 'Produk' | 'Servis';
+}
+
+/** Produk dari /pos/items. Katalog sengaja tanpa harga sejak migrasi
+ *  2026_08_20_000003 — harga jual diisi kasir saat transaksi. */
+interface ItemProduk {
+  id: number;
+  nama: string;
+  sku: string | null;
+  nama_kategori: string | null;
+}
+
+/** Servis yang belum diambil pelanggan, dengan harga dari server. */
+interface ItemServis {
+  id: number;
+  nomor_resi: string;
+  nama: string;
+  nama_customer: string | null;
+  status: string;
+  siap_diambil: boolean;
+  total_biaya: number;
+}
+
+interface DataKatalog {
+  produk: ItemProduk[];
+  services: ItemServis[];
 }
 
 function createReceiptNumber(): string {
@@ -75,18 +109,42 @@ export default function AdminPosPage() {
     };
   }, [lastNota, isOnline]);
 
+  // Dialog harga jual saat produk katalog dimasukkan ke keranjang.
+  const [produkDipilih, setProdukDipilih] = useState<ItemProduk | null>(null);
+  const [hargaInput, setHargaInput] = useState<string>('');
+
   // Manual Custom Item inputs
   const [customNama, setCustomNama] = useState('');
   const [customHarga, setCustomHarga] = useState<number | ''>('');
   const [customQty, setCustomQty] = useState<number>(1);
   const [customTipe, setCustomTipe] = useState<'Produk' | 'Servis'>('Produk');
 
-  const filteredProducts = produkData.filter(
-    (p) =>
-      p.nama_produk.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.kategori.nama_kategori.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Katalog dimuat dari basis data, bukan dari src/data/produk.json. Berkas
+  // statis itu memuat produk yang tidak ada di basis data beserta harga acuan
+  // yang tidak pernah dipakai backend — kasir bisa menjual barang yang tidak
+  // pernah ada, dan tidak pernah melihat barang yang sungguh terdaftar.
+  const { data: katalog, loading: memuatKatalog, error: galatKatalog } =
+    useApiData<DataKatalog>('/pos/items', (json) => json.data as DataKatalog);
+
+  const filteredProducts = useMemo(() => {
+    const kata = searchTerm.toLowerCase();
+    return (katalog?.produk ?? []).filter(
+      (p) =>
+        p.nama.toLowerCase().includes(kata) ||
+        (p.sku ?? '').toLowerCase().includes(kata) ||
+        (p.nama_kategori ?? '').toLowerCase().includes(kata)
+    );
+  }, [katalog, searchTerm]);
+
+  const daftarServis = useMemo(() => {
+    const kata = searchTerm.toLowerCase();
+    return (katalog?.services ?? []).filter(
+      (s) =>
+        s.nama.toLowerCase().includes(kata) ||
+        s.nomor_resi.toLowerCase().includes(kata) ||
+        (s.nama_customer ?? '').toLowerCase().includes(kata)
+    );
+  }, [katalog, searchTerm]);
 
   const addCustomItem = (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,32 +174,68 @@ export default function AdminPosPage() {
     setCustomQty(1);
   };
 
-  const addFromCatalog = (p: (typeof produkData)[0]) => {
-    const inputPrice = prompt(
-      `Masukkan harga jual untuk "${p.nama_produk}":`,
-      p.harga_dasar ? p.harga_dasar.toString() : '0'
-    );
-    if (inputPrice !== null && !isNaN(Number(inputPrice)) && Number(inputPrice) >= 0) {
-      const existing = cart.find((c) => c.produk_id === p.id && c.harga === Number(inputPrice));
-      if (existing) {
-        setCart(
-          cart.map((c) => (c.id === existing.id ? { ...c, jumlah: c.jumlah + 1 } : c))
-        );
-      } else {
-        const newCatId = `cat-${p.id}-${cart.length + 1}`;
-        setCart([
-          ...cart,
-          {
-            id: newCatId,
-            produk_id: p.id,
-            nama_item: p.nama_produk,
-            harga: Number(inputPrice),
-            jumlah: 1,
-            tipe: 'Produk',
-          },
-        ]);
-      }
+  /**
+   * Masukkan produk ke keranjang dengan harga yang diketik kasir.
+   *
+   * Harga memang bukan dari basis data: kolomnya dihapus pada migrasi
+   * 2026_08_20_000003 dan backend sengaja menerima harga produk dari kasir.
+   * Yang diganti di sini hanya cara menanyakannya — prompt() bawaan browser
+   * tidak bisa membatalkan salah ketik dengan jelas, tidak memformat angka,
+   * dan pada sebagian browser bisa diblokir diam-diam.
+   */
+  const terapkanHargaProduk = () => {
+    if (!produkDipilih) return;
+    const harga = Number(hargaInput);
+    if (hargaInput === '' || Number.isNaN(harga) || harga < 0) return;
+
+    const existing = cart.find((c) => c.produk_id === produkDipilih.id && c.harga === harga);
+    if (existing) {
+      setCart(cart.map((c) => (c.id === existing.id ? { ...c, jumlah: c.jumlah + 1 } : c)));
+    } else {
+      setCart([
+        ...cart,
+        {
+          id: `cat-${produkDipilih.id}-${Date.now()}`,
+          produk_id: produkDipilih.id,
+          nama_item: produkDipilih.nama,
+          harga,
+          jumlah: 1,
+          tipe: 'Produk',
+        },
+      ]);
     }
+
+    setProdukDipilih(null);
+    setHargaInput('');
+  };
+
+  /**
+   * Masukkan tiket servis ke keranjang.
+   *
+   * Harga yang dikirim hanya nilai tampilan; backend menetapkannya ulang dari
+   * tiket, dan service_id itulah yang membuat tiket tertaut ke transaksi lalu
+   * ditandai sudah diambil. Tanpa itu uangnya tercatat tetapi tiketnya
+   * menggantung selamanya.
+   */
+  const tambahServis = (s: ItemServis) => {
+    // Backend menolak menagih servis yang belum "Selesai" — menandai unit
+    // sudah diambil padahal masih dikerjakan itu salah. Penjagaan di sini
+    // penting karena penjualan ditulis ke antrean offline lebih dulu: tanpa
+    // ini, penolakan baru muncul saat sinkron dan transaksinya mengendap
+    // sebagai galat yang membingungkan kasir.
+    if (!s.siap_diambil) return;
+    if (cart.some((c) => c.service_id === s.id)) return;
+    setCart([
+      ...cart,
+      {
+        id: `svc-${s.id}`,
+        service_id: s.id,
+        nama_item: `${s.nama} (${s.nomor_resi})`,
+        harga: s.total_biaya,
+        jumlah: 1,
+        tipe: 'Servis',
+      },
+    ]);
   };
 
   const updateQtyDirect = (id: string, newQty: number) => {
@@ -204,6 +298,9 @@ export default function AdminPosPage() {
           items: cart.map((c) => ({
             id: c.id,
             produk_id: c.produk_id,
+            // Tanpa service_id, backend mencatat uangnya tetapi tiket servisnya
+            // tidak pernah tertaut dan unitnya tidak pernah ditandai diambil.
+            service_id: c.service_id,
             tipe: c.tipe === 'Servis' ? 'service' : 'produk',
             nama_item: c.nama_item,
             harga: c.harga,
@@ -378,6 +475,90 @@ export default function AdminPosPage() {
               </div>
             </div>
 
+            {memuatKatalog && (
+              <p className="text-xs text-neutral-400 m-0">Memuat katalog dari server&hellip;</p>
+            )}
+
+            {galatKatalog && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800">
+                {galatKatalog} — item tidak dapat dipilih dari katalog. Pakai Item Manual di atas.
+              </div>
+            )}
+
+            {/* Servis yang menunggu diambil. Sebelumnya tidak ada di layar ini
+                sama sekali: reparasi hanya bisa ditagih sebagai item manual,
+                yang membuat tiketnya tidak pernah tertaut ke transaksi. */}
+            {daftarServis.length > 0 && (
+              <div>
+                <h3 className="text-[11px] font-bold text-neutral-500 uppercase tracking-wider mb-2">
+                  Servis menunggu diambil ({daftarServis.length})
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-56 overflow-y-auto pr-1">
+                  {daftarServis.map((s) => {
+                    const sudahDiKeranjang = cart.some((c) => c.service_id === s.id);
+                    return (
+                      <div
+                        key={s.id}
+                        className="p-3 rounded-xl bg-white border border-neutral-200 flex flex-col justify-between gap-2 shadow-sm"
+                      >
+                        <div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="rl-mono text-[10px] font-bold text-[#b01218]">
+                              {s.nomor_resi}
+                            </span>
+                            <span
+                              className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                                s.siap_diambil
+                                  ? 'bg-emerald-50 text-emerald-700'
+                                  : 'bg-amber-50 text-amber-700'
+                              }`}
+                            >
+                              {s.status}
+                            </span>
+                          </div>
+                          <h4 className="font-bold text-xs text-neutral-900 line-clamp-2 mt-1">
+                            {s.nama}
+                          </h4>
+                          {s.nama_customer && (
+                            <span className="text-[10px] text-neutral-400 block">
+                              {s.nama_customer}
+                            </span>
+                          )}
+                          <span className="text-xs font-bold text-neutral-900 rl-mono mt-1 block">
+                            Rp {s.total_biaya.toLocaleString('id-ID')}
+                          </span>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => tambahServis(s)}
+                          disabled={sudahDiKeranjang || !s.siap_diambil}
+                          title={
+                            s.siap_diambil
+                              ? undefined
+                              : 'Hanya servis berstatus Selesai yang boleh ditagih dan ditandai sudah diambil.'
+                          }
+                          className="w-full py-1.5 px-3 rounded-lg bg-neutral-100 hover:bg-[#de1f26] hover:text-white text-neutral-800 text-xs font-bold transition-all text-center border-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-neutral-100 disabled:hover:text-neutral-800"
+                        >
+                          {sudahDiKeranjang
+                            ? 'Sudah di keranjang'
+                            : s.siap_diambil
+                              ? 'Tagihkan servis'
+                              : 'Belum selesai'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {filteredProducts.length > 0 && (
+              <h3 className="text-[11px] font-bold text-neutral-500 uppercase tracking-wider mb-2">
+                Produk ({filteredProducts.length})
+              </h3>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-96 overflow-y-auto pr-1">
               {filteredProducts.map((p) => (
                 <div
@@ -385,20 +566,19 @@ export default function AdminPosPage() {
                   className="p-3 rounded-xl bg-white border border-neutral-200 hover:border-[#de1f26]/50 transition-all flex flex-col justify-between gap-2 shadow-sm"
                 >
                   <div>
-                    <h4 className="font-bold text-xs text-neutral-900 line-clamp-2">
-                      {p.nama_produk}
-                    </h4>
+                    <h4 className="font-bold text-xs text-neutral-900 line-clamp-2">{p.nama}</h4>
                     <span className="text-[10px] rl-mono text-neutral-400 block mt-1">
-                      SKU: {p.sku} &middot; {p.kategori.nama_kategori}
-                    </span>
-                    <span className="text-xs font-bold text-[#b01218] rl-mono mt-1 block">
-                      Ref: Rp {(p.harga_dasar || 0).toLocaleString('id-ID')}
+                      {p.sku ? `SKU: ${p.sku}` : 'Tanpa SKU'}
+                      {p.nama_kategori ? ` · ${p.nama_kategori}` : ''}
                     </span>
                   </div>
 
                   <button
                     type="button"
-                    onClick={() => addFromCatalog(p)}
+                    onClick={() => {
+                      setProdukDipilih(p);
+                      setHargaInput('');
+                    }}
                     className="w-full py-1.5 px-3 rounded-lg bg-neutral-100 hover:bg-[#de1f26] hover:text-white text-neutral-800 text-xs font-bold transition-all text-center border-0 cursor-pointer"
                   >
                     Tambahkan
@@ -406,6 +586,12 @@ export default function AdminPosPage() {
                 </div>
               ))}
             </div>
+
+            {!memuatKatalog && !galatKatalog && filteredProducts.length === 0 && daftarServis.length === 0 && (
+              <p className="text-xs text-neutral-400 m-0">
+                {searchTerm ? 'Tidak ada yang cocok dengan pencarian.' : 'Katalog masih kosong.'}
+              </p>
+            )}
           </div>
         </div>
 
@@ -703,6 +889,65 @@ export default function AdminPosPage() {
           </div>
         </div>
       )}
+      {/* Harga jual produk diketik kasir — katalog memang tanpa harga sejak
+          migrasi 2026_08_20_000003. Dialog ini menggantikan prompt() bawaan
+          browser: angkanya terformat, salah ketik terlihat sebelum masuk
+          keranjang, dan tidak bisa diblokir diam-diam oleh browser. */}
+      {produkDipilih && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="rl-card w-full max-w-sm p-5">
+            <h2 className="text-sm font-bold text-neutral-900 m-0">Harga jual</h2>
+            <p className="text-[11px] text-neutral-500 mt-1 mb-4">{produkDipilih.nama}</p>
+
+            <label className="block">
+              <span className="rl-label">Harga satuan (Rp)</span>
+              <input
+                autoFocus
+                type="number"
+                min={0}
+                step={1000}
+                value={hargaInput}
+                onChange={(e) => setHargaInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    terapkanHargaProduk();
+                  }
+                }}
+                placeholder="0"
+                className="rl-input"
+              />
+              <span className="block text-[11px] text-neutral-400 mt-1">
+                {hargaInput !== '' && Number(hargaInput) > 0
+                  ? `Rp ${Number(hargaInput).toLocaleString('id-ID')}`
+                  : 'Katalog tidak menyimpan harga — isi sesuai kesepakatan.'}
+              </span>
+            </label>
+
+            <div className="flex items-center gap-2 mt-4">
+              <button
+                type="button"
+                onClick={terapkanHargaProduk}
+                disabled={hargaInput === '' || Number(hargaInput) < 0}
+                className="btn-redline rl-btn-sm flex-1 cursor-pointer disabled:opacity-60"
+              >
+                Masukkan ke keranjang
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setProdukDipilih(null);
+                  setHargaInput('');
+                }}
+                className="btn-ghost rl-btn-sm cursor-pointer"
+              >
+                Batal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
