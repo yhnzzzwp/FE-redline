@@ -1,6 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
+import DataOfflineBanner from '@/components/ui/DataOfflineBanner';
 import Navbar from '@/components/ui/Navbar';
 import Footer from '@/components/ui/Footer';
 
@@ -19,6 +20,7 @@ export default function PublicShell({ children }: { children: React.ReactNode })
     <>
       <a href="#konten" className="rl-skip-link">Lewati ke konten utama</a>
       <Navbar />
+      <DataOfflineBanner />
       <main id="konten" className="flex-1">
         {children}
       </main>
