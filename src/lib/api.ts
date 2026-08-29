@@ -247,7 +247,7 @@ export async function fetchCekServis(
     const timeoutId = setTimeout(() => controller.abort(), 6000);
 
     const res = await fetch(
-      `${apiBase()}/service/cek?nomor_resi=${encodeURIComponent(nomor_resi)}`,
+      `${apiBase()}/service/cek?resi=${encodeURIComponent(nomor_resi)}`,
       {
         cache: 'no-store',
         signal: controller.signal,

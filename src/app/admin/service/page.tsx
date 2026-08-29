@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useApiData, daftar } from '@/lib/useApiData';
 import { useConnection } from '@/lib/connection';
-import { Search, ChevronRight, X, WifiOff } from 'lucide-react';
+import { Search, ChevronRight, X, WifiOff, Plus } from 'lucide-react';
 
 interface ServiceRingkas {
   id: number;
@@ -83,6 +83,13 @@ export default function AdminServicePage() {
             Kelola dan pantau reparasi perangkat pelanggan &mdash; {activeCount} tiket aktif dalam proses pengerjaan.
           </p>
         </div>
+
+        <Link
+          href="/admin/service/baru"
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#de1f26] text-white text-xs font-semibold no-underline"
+        >
+          <Plus className="w-3.5 h-3.5" /> Terima Servis Baru
+        </Link>
       </div>
 
       {!isOnline && (
