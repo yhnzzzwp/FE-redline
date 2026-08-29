@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Search, Download, X, Plus, Pencil, Trash2 } from 'lucide-react';
+import { Search, Download, X, Plus, Pencil, Trash2, Tags } from 'lucide-react';
 import { useApiData, daftar } from '@/lib/useApiData';
 import { authFetch } from '@/lib/api';
 import { useConnection } from '@/lib/connection';
@@ -96,6 +96,12 @@ export default function AdminProdukPage() {
           >
             <Download className="w-3.5 h-3.5" /> Ekspor CSV
           </button>
+          <Link
+            href="/admin/kategori"
+            className="btn-ghost rl-btn-sm inline-flex items-center gap-1.5 no-underline"
+          >
+            <Tags className="w-3.5 h-3.5" /> Kategori
+          </Link>
           <Link
             href="/admin/produk/baru"
             className="btn-redline rl-btn-sm inline-flex items-center gap-1.5 no-underline"
