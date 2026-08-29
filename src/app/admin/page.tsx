@@ -27,8 +27,18 @@ interface TransaksiTerbaru {
   waktu: string | null;
 }
 
+/** Ringkasan penjualan per periode: cacah transaksi DAN nilai rupiahnya. */
+interface PeriodePenjualan {
+  pendapatan: number;
+  jumlah: number;
+}
+
 interface Ringkasan {
-  penjualan: { hari_ini: number; bulan_ini: number };
+  // Backend mengirim objek {pendapatan, jumlah} per periode, bukan angka
+  // tunggal. Sebelumnya ditipe sebagai number lalu dirender langsung di JSX,
+  // sehingga React melempar error #31 ("Objects are not valid as a React
+  // child") dan seluruh halaman dashboard gagal dipasang.
+  penjualan: { hari_ini: PeriodePenjualan; bulan_ini: PeriodePenjualan };
   servis: { aktif: number; siap_diambil: number };
   ringkasan: { total_produk: number; promo_aktif: number; total_pegawai: number };
   transaksi_terbaru: TransaksiTerbaru[];
@@ -46,8 +56,10 @@ export default function AdminDashboard() {
   );
 
   const activeTransaksi: TransaksiTerbaru[] = data?.transaksi_terbaru ?? [];
-  const totalPenjualanCount = data?.penjualan.bulan_ini ?? 0;
-  const penjualanHariIniCount = data?.penjualan.hari_ini ?? 0;
+  const totalPenjualanCount = data?.penjualan.bulan_ini.jumlah ?? 0;
+  const penjualanHariIniCount = data?.penjualan.hari_ini.jumlah ?? 0;
+  const pendapatanBulanIni = data?.penjualan.bulan_ini.pendapatan ?? 0;
+  const pendapatanHariIni = data?.penjualan.hari_ini.pendapatan ?? 0;
   const servisAktifCount = data?.servis.aktif ?? 0;
   const totalProdukCount = data?.ringkasan.total_produk ?? 0;
 
@@ -64,7 +76,10 @@ export default function AdminDashboard() {
     csvRows.push(`Status Koneksi: ${isOnline ? 'Online (Terhubung API)' : 'Offline (Mode Mandiri)'}`);
     csvRows.push('');
     csvRows.push(['METRIK UTAMA', 'NILAI', 'SATUAN'].join(','));
-    csvRows.push(['Total Penjualan', totalPenjualanCount.toString(), 'Transaksi'].join(','));
+    csvRows.push(['Total Penjualan Bulan Ini', totalPenjualanCount.toString(), 'Transaksi'].join(','));
+    csvRows.push(['Pendapatan Bulan Ini', pendapatanBulanIni.toString(), 'Rupiah'].join(','));
+    csvRows.push(['Penjualan Hari Ini', penjualanHariIniCount.toString(), 'Transaksi'].join(','));
+    csvRows.push(['Pendapatan Hari Ini', pendapatanHariIni.toString(), 'Rupiah'].join(','));
     csvRows.push(['Servis Aktif', servisAktifCount.toString(), 'Tiket'].join(','));
     csvRows.push(['Total Produk Katalog', totalProdukCount.toString(), 'Item'].join(','));
     csvRows.push('');
@@ -127,7 +142,7 @@ export default function AdminDashboard() {
               <path d="M3 6h18M3 12h18M3 18h18" />
             </svg>
           </div>
-          <div className="rl-kpi__label">Total Penjualan</div>
+          <div className="rl-kpi__label">Total Penjualan (Bulan Ini)</div>
           <div className="rl-kpi__val tnum">
             {totalPenjualanCount}{' '}
             <span className="text-base font-normal text-neutral-400">Transaksi</span>
