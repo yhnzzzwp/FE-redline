@@ -229,7 +229,10 @@ function AdminShell({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Body Content */}
-        <main className="rl-body flex-1 pb-24 lg:pb-8" id="konten">
+        {/* Jarak bawah untuk navigasi mobile ada di .rl-body (globals.css);
+            utilitas padding di sini tidak akan berpengaruh — lihat catatan
+            tentang cascade layer di aturan .rl-body. */}
+        <main className="rl-body flex-1" id="konten">
           {children}
         </main>
 

@@ -1320,12 +1320,29 @@ a.rl-card:hover,
 }
 
 .rl-body {
-  padding: 26px;
+  /* Padding bawah harus memberi ruang untuk navigasi bawah mobile: nav itu
+     position:fixed dengan z-40, jadi ia menutupi ~58px terakhir halaman —
+     tepat tempat tombol simpan formulir berada.
+
+     Jaraknya WAJIB disetel di sini, bukan lewat utilitas `pb-24` di <main>.
+     Tailwind v4 (@import "tailwindcss") menempatkan utilitasnya di dalam
+     cascade layer, sedangkan aturan ini tidak berlapis — dan CSS tak berlapis
+     selalu menang atas yang berlapis, berapa pun spesifisitasnya. Shorthand
+     `padding` di bawah ini karena itu diam-diam membatalkan `pb-24`. */
+  padding: 26px 26px calc(84px + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   gap: 20px;
   background-color: var(--bg);
   flex: 1;
+}
+
+/* Navigasi bawah itu lg:hidden, jadi ruangnya tidak diperlukan lagi di layar
+   besar. Ambang 1024px menyamai breakpoint `lg` Tailwind. */
+@media (min-width: 1024px) {
+  .rl-body {
+    padding-bottom: 26px;
+  }
 }
 
 .rl-avatar {
