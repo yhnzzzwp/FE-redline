@@ -1496,6 +1496,10 @@ a.rl-card:hover,
     padding: 13px 16px;
   }
   .rl-body {
-    padding: 16px;
+    /* Ruang bawah untuk navigasi mobile tetap dipertahankan di sini. Aturan
+       ini berada setelah aturan dasar .rl-body dengan spesifisitas sama, jadi
+       menulis `padding: 16px` saja akan membatalkan ruang itu justru di ukuran
+       layar tempat navigasinya muncul. */
+    padding: 16px 16px calc(84px + env(safe-area-inset-bottom, 0px));
   }
 }
