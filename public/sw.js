@@ -2,7 +2,7 @@
 // Versi dinaikkan ke v2: handler 'activate' menghapus cache dengan nama lain,
 // sehingga HTML halaman internal yang terlanjur tersimpan di perangkat lama
 // ikut terhapus saat service worker ini aktif.
-const CACHE_NAME = 'redline-pos-v2';
+const CACHE_NAME = 'redline-pos-v3';
 
 // Hanya halaman publik yang di-precache.
 // '/pos' SENGAJA tidak ada di sini: ia rute terproteksi, dan men-precache-nya
@@ -73,6 +73,24 @@ self.addEventListener('fetch', (event) => {
 
   const isNavigation = request.mode === 'navigate';
 
+  // JANGAN sentuh permintaan data App Router.
+  //
+  // Next.js mengambil payload React Server Component lewat URL halaman biasa
+  // dengan query ?_rsc=... (dan header RSC). Permintaan itu BUKAN navigasi,
+  // sehingga pada versi sebelumnya jatuh ke cabang cache-first di bawah dan
+  // disajikan dari cache. Payload RSC yang basi membuat App Router gagal
+  // memasang halaman — persis gejala "this page couldn't load" yang hilang
+  // sesaat setelah reload (reload adalah navigasi, jadi ambil dari jaringan)
+  // lalu muncul lagi pada navigasi klien berikutnya.
+  if (
+    !isNavigation &&
+    (url.search !== '' ||
+      request.headers.get('RSC') !== null ||
+      (request.headers.get('Accept') || '').includes('text/x-component'))
+  ) {
+    return;
+  }
+
   // Navigasi: NETWORK-FIRST.
   //
   // Versi sebelumnya cache-first untuk semua navigasi, sehingga halaman
@@ -117,7 +135,17 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Aset statis: cache-first tetap aman dan cepat.
+  // Cache-first HANYA untuk aset yang benar-benar tidak berubah: berkas di
+  // /_next/static/ memakai nama ber-hash isi, begitu pula aset di /public.
+  // Selain itu jangan di-cache sama sekali — biarkan lewat ke jaringan.
+  const asetStatis =
+    url.pathname.startsWith('/_next/static/') ||
+    /\.(?:js|css|woff2?|ttf|otf|png|jpe?g|gif|svg|webp|ico|json)$/i.test(url.pathname);
+
+  if (!asetStatis) {
+    return;
+  }
+
   event.respondWith(
     caches.match(request).then((cached) => {
       const networkFetch = fetch(request)
