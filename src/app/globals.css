@@ -1538,12 +1538,25 @@ a.rl-card:hover,
  * di label thermal maupun kertas A4 yang lalu digunting.
  */
 @media print {
-  body * {
+  /*
+   * DIBATASI dengan :has() — bukan `body *` polos.
+   *
+   * Halaman nota (src/app/nota/[kode]/page.tsx) juga memanggil window.print()
+   * dan mengatur tampilannya sendiri lewat utilitas `print:`. Menyembunyikan
+   * seluruh isi body tanpa syarat akan membuat struk pelanggan tercetak
+   * KOSONG. Aturan ini karena itu hanya menyala pada halaman yang memang
+   * memiliki area cetak stiker.
+   *
+   * Pada browser tanpa dukungan :has(), aturan diabaikan seluruhnya: stiker
+   * tercetak bersama isi halaman lain (jelek tapi terbaca), dan nota tetap
+   * benar. Arah kegagalannya sengaja dipilih yang itu.
+   */
+  body:has(.rl-print-area) * {
     visibility: hidden !important;
   }
 
-  .rl-print-area,
-  .rl-print-area * {
+  body:has(.rl-print-area) .rl-print-area,
+  body:has(.rl-print-area) .rl-print-area * {
     visibility: visible !important;
   }
 
@@ -1555,9 +1568,5 @@ a.rl-card:hover,
 
   .rl-tanpa-cetak {
     display: none !important;
-  }
-
-  @page {
-    margin: 6mm;
   }
 }
