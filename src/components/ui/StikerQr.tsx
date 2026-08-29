@@ -77,6 +77,9 @@ export default function StikerQr({
               <div className="rl-stiker__qr bg-neutral-100" />
             )}
             <p className="rl-stiker__unit">{merkModel}</p>
+            {/* Cadangan bila QR tergores atau kotor kena obeng: unit tetap bisa
+                dikenali, dan kodenya bisa diketik manual di /admin/pindai. */}
+            <p className="rl-stiker__kode">{kode}</p>
           </div>
         </div>
 

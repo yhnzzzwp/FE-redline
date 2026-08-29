@@ -1529,6 +1529,18 @@ a.rl-card:hover,
   word-break: break-word;
 }
 
+/* Kode unit dalam huruf yang terbaca manusia. Monospace dan berjarak huruf
+   supaya 0/O dan 1/I tidak tertukar saat diketik ulang di /admin/pindai. */
+.rl-stiker__kode {
+  font-family: var(--font-mono, ui-monospace, "SF Mono", Menlo, monospace);
+  font-size: 7.5pt;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  margin: 1mm 0 0;
+  word-break: break-all;
+}
+
 /*
  * Mencetak stiker tanpa membawa serta seluruh panel admin.
  *
