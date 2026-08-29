@@ -35,7 +35,9 @@ export function useConnection() {
 }
 
 // ─── Health Check ──────────────────────────────────────────────────
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1';
+// Healthcheck juga lewat proksi same-origin: komponen ini berjalan di
+// browser, dan alamat backend tidak boleh bocor ke sana.
+const API_BASE = '/api/backend';
 const HEALTH_CHECK_INTERVAL = 30_000; // 30 detik
 const HEALTH_CHECK_TIMEOUT = 5_000;   // 5 detik timeout
 

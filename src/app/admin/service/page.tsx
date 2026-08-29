@@ -2,13 +2,33 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import serviceData from '@/data/service.json';
+import { useApiData, daftar } from '@/lib/useApiData';
 import { useConnection } from '@/lib/connection';
 import { Search, ChevronRight, X, WifiOff } from 'lucide-react';
 
+interface ServiceRingkas {
+  id: number;
+  nomor_resi: string;
+  status: string;
+  keluhan: string;
+  tanggal_masuk: string | null;
+  total_biaya: number;
+  perangkat: {
+    nama_customer: string;
+    nomor_hp_customer: string | null;
+    merk_model: string;
+  };
+}
+
 export default function AdminServicePage() {
   const { isOnline } = useConnection();
-  const [services] = useState(serviceData);
+  // Sama seperti transaksi: fixture service.json memuat data perangkat dan
+  // pelanggan, jadi tidak boleh ikut ke bundle publik.
+  const { data, loading, error } = useApiData<ServiceRingkas[]>(
+    '/admin/services?per_page=100',
+    (json) => daftar<ServiceRingkas>(json)
+  );
+  const services = data ?? [];
   const [cari, setCari] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
 
@@ -46,6 +66,16 @@ export default function AdminServicePage() {
 
   return (
     <div className="space-y-6">
+      {loading && (
+        <div className="p-3 bg-neutral-50 border border-neutral-200 rounded-xl text-xs text-neutral-500">
+          Memuat data servis dari server&hellip;
+        </div>
+      )}
+      {error && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800">
+          {error}
+        </div>
+      )}
       <div className="rl-page-header flex items-start justify-between flex-wrap gap-3">
         <div>
           <h1 className="rl-page-title mb-1">Manajemen Servis</h1>

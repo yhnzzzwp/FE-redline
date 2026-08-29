@@ -12,11 +12,11 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build arguments untuk env saat build-time
-ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:8080/api/v1
+# Build args hanya untuk nilai yang MEMANG publik.
+# Alamat backend sengaja TIDAK di sini: sejak pola BFF dipakai, ia dibaca
+# saat runtime lewat API_BASE_URL (tanpa awalan NEXT_PUBLIC_) sehingga tidak
+# pernah ikut ter-inline ke dalam bundle JavaScript browser.
 ARG NEXT_PUBLIC_WA_PHONE=6281234567890
-
-ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 ENV NEXT_PUBLIC_WA_PHONE=$NEXT_PUBLIC_WA_PHONE
 ENV NEXT_TELEMETRY_DISABLED=1
 
@@ -28,6 +28,9 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+
+# Alamat backend Laravel — server-only, dibaca saat runtime oleh Route Handler.
+ENV API_BASE_URL=http://redline-web/api/v1
 
 # User non-root untuk keamanan
 RUN addgroup --system --gid 1001 nodejs && \

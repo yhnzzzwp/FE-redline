@@ -32,6 +32,9 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# Templat tanpa rahasia WAJIB ikut ter-commit supaya nama variabel yang
+# dibutuhkan (terutama API_BASE_URL yang server-only) terdokumentasi.
+!.env.example
 
 # vercel
 .vercel

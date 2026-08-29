@@ -1,9 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import transaksiData from '@/data/transaksi.json';
-import serviceData from '@/data/service.json';
-import produkData from '@/data/produk.json';
+import { useApiData } from '@/lib/useApiData';
+import { selCsv } from '@/lib/csv';
 import { useConnection } from '@/lib/connection';
 import { WifiOff, Download } from 'lucide-react';
 
@@ -17,14 +16,52 @@ const DUMMY_TREND = [
   { label: 'Min', total: 4 },
 ];
 
+interface TransaksiTerbaru {
+  id: number;
+  kode_nota: string;
+  nama_pembeli: string;
+  total: number;
+  metode_bayar: string;
+  status: string;
+  kasir: string | null;
+  waktu: string | null;
+}
+
+/** Ringkasan penjualan per periode: cacah transaksi DAN nilai rupiahnya. */
+interface PeriodePenjualan {
+  pendapatan: number;
+  jumlah: number;
+}
+
+interface Ringkasan {
+  // Backend mengirim objek {pendapatan, jumlah} per periode, bukan angka
+  // tunggal. Sebelumnya ditipe sebagai number lalu dirender langsung di JSX,
+  // sehingga React melempar error #31 ("Objects are not valid as a React
+  // child") dan seluruh halaman dashboard gagal dipasang.
+  penjualan: { hari_ini: PeriodePenjualan; bulan_ini: PeriodePenjualan };
+  servis: { aktif: number; siap_diambil: number };
+  ringkasan: { total_produk: number; promo_aktif: number; total_pegawai: number };
+  transaksi_terbaru: TransaksiTerbaru[];
+}
+
 export default function AdminDashboard() {
   const { isOnline } = useConnection();
 
-  const activeTransaksi = isOnline ? transaksiData : [];
-  const totalPenjualanCount = isOnline ? transaksiData.length : 0;
-  const penjualanHariIniCount = isOnline ? 2 : 0;
-  const servisAktifCount = isOnline ? serviceData.length : 0;
-  const totalProdukCount = produkData.length;
+  // Angka dan daftar transaksi kini datang dari backend. Sebelumnya seluruh
+  // isi transaksi.json dan service.json — termasuk nama serta nomor telepon
+  // pembeli — ikut terkirim ke bundle JavaScript setiap pengunjung situs.
+  const { data } = useApiData<Ringkasan>(
+    '/admin/dashboard',
+    (json) => json.data as Ringkasan
+  );
+
+  const activeTransaksi: TransaksiTerbaru[] = data?.transaksi_terbaru ?? [];
+  const totalPenjualanCount = data?.penjualan.bulan_ini.jumlah ?? 0;
+  const penjualanHariIniCount = data?.penjualan.hari_ini.jumlah ?? 0;
+  const pendapatanBulanIni = data?.penjualan.bulan_ini.pendapatan ?? 0;
+  const pendapatanHariIni = data?.penjualan.hari_ini.pendapatan ?? 0;
+  const servisAktifCount = data?.servis.aktif ?? 0;
+  const totalProdukCount = data?.ringkasan.total_produk ?? 0;
 
   const currentTrend = isOnline
     ? DUMMY_TREND
@@ -39,7 +76,10 @@ export default function AdminDashboard() {
     csvRows.push(`Status Koneksi: ${isOnline ? 'Online (Terhubung API)' : 'Offline (Mode Mandiri)'}`);
     csvRows.push('');
     csvRows.push(['METRIK UTAMA', 'NILAI', 'SATUAN'].join(','));
-    csvRows.push(['Total Penjualan', totalPenjualanCount.toString(), 'Transaksi'].join(','));
+    csvRows.push(['Total Penjualan Bulan Ini', totalPenjualanCount.toString(), 'Transaksi'].join(','));
+    csvRows.push(['Pendapatan Bulan Ini', pendapatanBulanIni.toString(), 'Rupiah'].join(','));
+    csvRows.push(['Penjualan Hari Ini', penjualanHariIniCount.toString(), 'Transaksi'].join(','));
+    csvRows.push(['Pendapatan Hari Ini', pendapatanHariIni.toString(), 'Rupiah'].join(','));
     csvRows.push(['Servis Aktif', servisAktifCount.toString(), 'Tiket'].join(','));
     csvRows.push(['Total Produk Katalog', totalProdukCount.toString(), 'Item'].join(','));
     csvRows.push('');
@@ -47,11 +87,13 @@ export default function AdminDashboard() {
     csvRows.push(['Kode Nota', 'Tanggal', 'Customer', 'Kasir', 'Total (Rp)', 'Status'].join(','));
 
     activeTransaksi.forEach((t) => {
+      // selCsv menetralkan sel yang diawali = + - @ supaya nama pembeli atau
+      // kasir tidak berubah menjadi formula hidup saat berkas dibuka.
       csvRows.push([
-        `#${t.kode_nota}`,
-        `"${t.created_at}"`,
-        `"${t.nama_pembeli}"`,
-        `"${t.pegawai.nama_pegawai}"`,
+        selCsv(`#${t.kode_nota}`),
+        selCsv(t.waktu ?? ''),
+        selCsv(t.nama_pembeli),
+        selCsv(t.kasir ?? ''),
         t.total.toString(),
         t.status,
       ].join(','));
@@ -100,7 +142,7 @@ export default function AdminDashboard() {
               <path d="M3 6h18M3 12h18M3 18h18" />
             </svg>
           </div>
-          <div className="rl-kpi__label">Total Penjualan</div>
+          <div className="rl-kpi__label">Total Penjualan (Bulan Ini)</div>
           <div className="rl-kpi__val tnum">
             {totalPenjualanCount}{' '}
             <span className="text-base font-normal text-neutral-400">Transaksi</span>
@@ -208,8 +250,8 @@ export default function AdminDashboard() {
                       #{t.kode_nota}
                     </div>
                     <div className="text-[11px] text-neutral-400">
-                      {t.nama_pembeli} &middot; {t.pegawai.nama_pegawai} &middot;{' '}
-                      {t.created_at.slice(5, 16)}
+                      {t.nama_pembeli} &middot; {t.kasir ?? '—'} &middot;{' '}
+                      {(t.waktu ?? '').slice(5, 16)}
                     </div>
                   </div>
                   <div className="text-right">
@@ -217,7 +259,7 @@ export default function AdminDashboard() {
                       className="font-bold tnum text-xs"
                       style={{ color: 'var(--ink)' }}
                     >
-                      {t.items.length} Item
+                      Rp {t.total.toLocaleString('id-ID')}
                     </div>
                     {t.status.toLowerCase() === 'batal' ? (
                       <span className="rl-pill rl-pill-red text-[10px]">BATAL</span>

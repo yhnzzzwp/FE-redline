@@ -1,14 +1,37 @@
 'use client';
 
+import { OwnerOnly } from '@/lib/session';
 import { useState } from 'react';
-import pegawaiData from '@/data/pegawai.json';
+import { useApiData, daftar } from '@/lib/useApiData';
 import { useConnection } from '@/lib/connection';
 import { Search, X, ShieldAlert } from 'lucide-react';
 
-export default function AdminPegawaiPage() {
+interface Pegawai {
+  id: number;
+  nama_pegawai: string;
+  username: string;
+  email: string;
+  role: string;
+  nomor_hp: string | null;
+  tanggal_masuk: string | null;
+  masih_bekerja: boolean;
+  sesi_count: number;
+}
+
+function AdminPegawaiPage() {
   const { isOnline } = useConnection();
-  const [pegawaiList] = useState(pegawaiData);
   const [cari, setCari] = useState('');
+
+  // Data pegawai kini diambil dari backend dengan sesi yang sah. Sebelumnya
+  // seluruh daftar — nama, username, email, nomor telepon — di-import dari
+  // src/data/pegawai.json sehingga ikut terkirim ke bundle JavaScript setiap
+  // pengunjung situs, login atau tidak.
+  const { data, loading, error } = useApiData<Pegawai[]>(
+    '/admin/pegawai?per_page=100',
+    (json) => daftar<Pegawai>(json)
+  );
+
+  const pegawaiList = data ?? [];
 
   const getInitials = (name: string) => {
     return name
@@ -83,7 +106,19 @@ export default function AdminPegawaiPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100 text-neutral-800">
-              {filtered.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="py-12 text-center text-neutral-400 text-xs">
+                    Memuat data pegawai&hellip;
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={7} className="py-12 text-center text-red-600 text-xs">
+                    {error}
+                  </td>
+                </tr>
+              ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-12 text-center text-neutral-400 text-xs">
                     Tidak ada data pegawai yang sesuai dengan pencarian Anda.
@@ -166,5 +201,18 @@ export default function AdminPegawaiPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Halaman khusus Owner. Penegak sebenarnya tetap backend (grup 'owner.api'
+ * di routes/api.php) — pembungkus ini mencegah antarmuka Owner dirender
+ * untuk Karyawan, yang sebelumnya tidak diperiksa sama sekali.
+ */
+export default function Page() {
+  return (
+    <OwnerOnly>
+      <AdminPegawaiPage />
+    </OwnerOnly>
   );
 }

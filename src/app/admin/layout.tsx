@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { logoutUser } from '@/lib/api';
+import { SessionProvider, useSession, inisial } from '@/lib/session';
 import {
   Server,
   Menu,
@@ -26,20 +28,36 @@ const NAV_ITEMS = [
   { key: 'produk', label: 'Produk', href: '/admin/produk', icon: Package },
   { key: 'transaksi', label: 'Transaksi', href: '/admin/transaksi', icon: Receipt },
   { key: 'service', label: 'Servis', href: '/admin/service', icon: Wrench },
-  { key: 'promo', label: 'Promo', href: '/admin/promo', icon: Tag },
-  { key: 'pegawai', label: 'Akun Pegawai', href: '/admin/pegawai', icon: Users },
+  // Dua menu ini hanya untuk Owner — cocok dengan grup 'owner.api' di
+  // routes/api.php pada backend, yang tetap menjadi penegak sebenarnya.
+  { key: 'promo', label: 'Promo', href: '/admin/promo', icon: Tag, ownerOnly: true },
+  { key: 'pegawai', label: 'Akun Pegawai', href: '/admin/pegawai', icon: Users, ownerOnly: true },
   { key: 'sesi', label: 'Sesi Aktif', href: '/admin/sesi', icon: Laptop },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
-  const { isOnline } = useConnection();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // Halaman login tidak boleh memicu pengambilan sesi (belum ada sesinya).
   if (pathname === '/admin/login') {
     return <>{children}</>;
   }
+
+  return (
+    <SessionProvider>
+      <AdminShell>{children}</AdminShell>
+    </SessionProvider>
+  );
+}
+
+function AdminShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { isOnline } = useConnection();
+  const { user, isOwner } = useSession();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const navItems = NAV_ITEMS.filter((item) => !item.ownerOnly || isOwner);
 
   const activeKey = NAV_ITEMS.find((item) =>
     item.key === 'dashboard' ? pathname === '/admin' : pathname.startsWith(item.href)
@@ -52,8 +70,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     year: 'numeric',
   }).format(new Date());
 
-  const handleLogout = () => {
-    document.cookie = 'admin-token=; path=/; max-age=0';
+  const handleLogout = async () => {
+    // Server yang mencabut token di Laravel sekaligus menghapus cookie
+    // HttpOnly-nya; halaman ini tidak punya akses ke keduanya.
+    await logoutUser();
+
+    // Buang HTML halaman internal yang tersimpan service worker supaya
+    // pengguna berikutnya di perangkat yang sama tidak bisa membukanya offline.
+    try {
+      navigator.serviceWorker?.controller?.postMessage({ type: 'CLEAR_CACHE' });
+    } catch {
+      // Service worker tidak aktif — abaikan.
+    }
+
     router.push('/admin/login');
   };
 
@@ -91,7 +120,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <div className="rl-portal-chip">Admin Console</div>
 
           <nav className="space-y-1 flex-1 py-1">
-            {NAV_ITEMS.map((item) => {
+            {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeKey === item.key;
               return (
@@ -188,10 +217,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
 
             <div className="text-right hidden md:block leading-tight">
-              <div className="font-semibold text-sm" style={{ color: 'var(--ink)' }}>Adi Kusumo</div>
-              <div className="text-neutral-500 text-xs">Owner &amp; Pegawai &middot; {currentDate}</div>
+              <div className="font-semibold text-sm" style={{ color: 'var(--ink)' }}>
+                {user?.nama_pegawai ?? '…'}
+              </div>
+              <div className="text-neutral-500 text-xs">
+                {user?.role ?? 'Memuat'} &middot; {currentDate}
+              </div>
             </div>
-            <div className="rl-avatar hidden sm:inline-flex">AK</div>
+            <div className="rl-avatar hidden sm:inline-flex">{inisial(user?.nama_pegawai)}</div>
           </div>
         </header>
 

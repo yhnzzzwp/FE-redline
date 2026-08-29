@@ -1,7 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import produkData from '@/data/produk.json';
+import { useSession } from '@/lib/session';
+import { savePendingTransaction, countPending } from '@/lib/storage';
+import { syncPendingTransactions } from '@/lib/sync';
 import {
   ShoppingBag,
   Plus,
@@ -30,11 +33,26 @@ function createReceiptNumber(): string {
   return String(Date.now()).slice(-6);
 }
 
+/**
+ * Id unik lintas perangkat untuk antrean offline.
+ *
+ * Kolom transaksi.local_id di backend ber-index UNIQUE, jadi tabrakan berarti
+ * satu penjualan diam-diam dianggap "sudah tersinkron" dan hilang. Nomor nota
+ * enam digit berbasis waktu jelas tidak cukup untuk dua tablet kasir.
+ */
+function createLocalId(): string {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return `rl-${crypto.randomUUID()}`;
+  }
+  return `rl-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 function getFormattedDate(): string {
   return new Date().toLocaleString('id-ID');
 }
 
 export default function AdminPosPage() {
+  const { user } = useSession();
   const { isOnline } = useConnection();
   const [cart, setCart] = useState<CartLine[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -43,6 +61,19 @@ export default function AdminPosPage() {
   const [metodeBayar, setMetodeBayar] = useState('Tunai');
   const [bayarNominal, setBayarNominal] = useState<number>(0);
   const [lastNota, setLastNota] = useState<ReceiptData | null>(null);
+  const [antre, setAntre] = useState(0);
+
+  // Tampilkan berapa penjualan yang masih menunggu terkirim ke server.
+  useEffect(() => {
+    let batal = false;
+    void (async () => {
+      const n = await countPending().catch(() => 0);
+      if (!batal) setAntre(n);
+    })();
+    return () => {
+      batal = true;
+    };
+  }, [lastNota, isOnline]);
 
   // Manual Custom Item inputs
   const [customNama, setCustomNama] = useState('');
@@ -139,6 +170,7 @@ export default function AdminPosPage() {
     }
 
     const kode_nota = createReceiptNumber();
+    const localId = createLocalId();
     const completed: ReceiptData = {
       kode_nota,
       tanggal: getFormattedDate(),
@@ -150,27 +182,53 @@ export default function AdminPosPage() {
       bayar: metodeBayar === 'Tunai' ? (bayarNominal || total) : total,
       kembalian,
       metode_bayar: metodeBayar,
-      kasir: 'Adi Kusumo (Owner & Pegawai)',
+      // Kasir diambil dari sesi yang sedang login. Sebelumnya ter-hardcode,
+      // sehingga setiap struk mencantumkan nama yang sama siapa pun yang
+      // menjaga kasir — sekaligus membocorkan nama itu ke bundle publik.
+      kasir: user?.nama_pegawai ?? 'Kasir Redline',
     };
 
-    // Simpan ke offline cache lokal agar transaksi toko aman 100%
-    try {
-      const existingStr = localStorage.getItem('redline_pos_local_transactions');
-      const existingList = existingStr ? JSON.parse(existingStr) : [];
-      existingList.unshift({ ...completed, synced: isOnline });
-      localStorage.setItem('redline_pos_local_transactions', JSON.stringify(existingList.slice(0, 100)));
-    } catch {
-      // localStorage fallback
-    }
+    // SELALU tulis ke antrean lokal lebih dulu, online maupun offline.
+    //
+    // Sebelumnya transaksi ditulis ke localStorage, sementara sync.ts membaca
+    // IndexedDB — dua tempat berbeda. Ditambah tidak ada yang pernah memanggil
+    // sync, akibatnya setiap penjualan yang dibuat saat offline TIDAK PERNAH
+    // sampai ke server. Menulis dulu lalu menyinkronkan membuat jalur online
+    // dan offline identik, dan tidak ada penjualan yang bisa hilang.
+    void (async () => {
+      try {
+        await savePendingTransaction({
+          localId,
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+          items: cart.map((c) => ({
+            id: c.id,
+            produk_id: c.produk_id,
+            tipe: c.tipe === 'Servis' ? 'service' : 'produk',
+            nama_item: c.nama_item,
+            harga: c.harga,
+            jumlah: c.jumlah,
+          })),
+          subtotal,
+          diskon: 0,
+          total,
+          bayar: metodeBayar === 'Tunai' ? (bayarNominal || total) : total,
+          kembalian,
+          metode_bayar: metodeBayar,
+          nama_pembeli: namaPembeli || 'Umum',
+          nomor_hp_pembeli: nomorHp || undefined,
+        });
 
-    // Jika online, kirim ke endpoint backend
-    if (isOnline) {
-      fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1'}/pos/checkout`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(completed),
-      }).catch(() => null);
-    }
+        if (isOnline) {
+          await syncPendingTransactions();
+        }
+      } catch {
+        // Kegagalan menulis antrean tidak boleh membatalkan nota di layar;
+        // jumlah antrean di bawah akan memperlihatkan kondisi sebenarnya.
+      } finally {
+        setAntre(await countPending().catch(() => 0));
+      }
+    })();
 
     setLastNota(completed);
     setCart([]);
@@ -196,6 +254,18 @@ export default function AdminPosPage() {
             Pencatatan transaksi kasir dengan fleksibilitas input harga mandiri, cetak nota PDF, &amp; kirim WhatsApp.
           </p>
         </div>
+
+        {/* Kondisi antrean: kasir harus tahu penjualan tersimpan aman meski
+            server tidak terjangkau, dan tahu kapan semuanya sudah terkirim. */}
+        {antre > 0 && (
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-amber-200 bg-amber-50 text-[11px] font-semibold text-amber-900">
+            <CloudOff className="w-3.5 h-3.5 shrink-0" />
+            <span>
+              {antre} transaksi menunggu terkirim
+              {isOnline ? ' — sedang disinkronkan…' : ' (tersimpan di perangkat ini)'}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

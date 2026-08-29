@@ -2,9 +2,51 @@
 
 import { use, useState } from 'react';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
-import serviceData from '@/data/service.json';
+import { useApiData } from '@/lib/useApiData';
+import { authFetch } from '@/lib/api';
 import { MessageCircle, CheckCircle2 } from 'lucide-react';
+
+interface Riwayat {
+  id: number;
+  status: string;
+  catatan: string | null;
+  pegawai: string | { nama_pegawai?: string } | null;
+  waktu: string;
+}
+
+interface PartServis {
+  nama_part: string;
+  jumlah: number;
+  harga: number;
+  subtotal: number;
+}
+
+interface ServiceDetail {
+  id: number;
+  nomor_resi: string;
+  status: string;
+  keluhan: string;
+  catatan_solusi: string | null;
+  tanggal_masuk: string | null;
+  estimasi_selesai: string | null;
+  biaya_service: number;
+  perangkat: {
+    nama_customer: string;
+    nomor_hp_customer: string | null;
+    merk_model: string;
+  };
+  parts: PartServis[];
+  riwayat: Riwayat[];
+  pegawai: { nama_pegawai?: string } | null;
+  teknisi: { nama_pegawai?: string } | null;
+}
+
+/** Nama penulis riwayat; API bisa mengirim string atau objek pegawai. */
+function penulis(p: Riwayat['pegawai']): string {
+  if (!p) return '—';
+  if (typeof p === 'string') return p;
+  return p.nama_pegawai ?? '—';
+}
 
 const STATUS_STEPS = [
   'Diterima',
@@ -20,19 +62,46 @@ export default function AdminServiceDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const service = serviceData.find((s) => s.id.toString() === id || s.nomor_resi === id);
 
-  if (!service) {
-    notFound();
+  // Diambil dari backend dengan sesi yang sah. Sebelumnya seluruh isi
+  // src/data/service.json — termasuk nama dan nomor telepon pelanggan —
+  // ikut terkirim ke bundle JavaScript setiap pengunjung situs.
+  const { data: service, loading, error, muatUlang } = useApiData<ServiceDetail>(
+    `/admin/services/${encodeURIComponent(id)}`,
+    (json) => json.data as ServiceDetail
+  );
+
+  if (loading) {
+    return <div className="p-8 text-sm text-neutral-500">Memuat data servis&hellip;</div>;
   }
 
-  return <ServiceDetailContent service={service} />;
+  if (error || !service) {
+    return (
+      <div className="p-8">
+        <div className="max-w-md rounded-2xl border border-red-200 bg-red-50 p-5">
+          <h2 className="font-bold text-sm text-red-900 mb-1">Servis tidak ditemukan</h2>
+          <p className="text-xs text-red-800 mb-3">{error ?? 'Data tidak tersedia.'}</p>
+          <Link href="/admin/service" className="text-xs font-semibold underline">
+            Kembali ke daftar servis
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  return <ServiceDetailContent service={service} onTersimpan={muatUlang} />;
 }
 
-function ServiceDetailContent({ service }: { service: (typeof serviceData)[0] }) {
+function ServiceDetailContent({
+  service,
+  onTersimpan,
+}: {
+  service: ServiceDetail;
+  onTersimpan: () => void;
+}) {
   const [currentStatus, setCurrentStatus] = useState(service.status);
   const [catatanBaru, setCatatanBaru] = useState('');
-  const [history, setHistory] = useState(service.riwayat || []);
+  const history: Riwayat[] = service.riwayat ?? [];
 
   const getStepIndex = (status: string) => {
     return STATUS_STEPS.indexOf(status);
@@ -40,21 +109,39 @@ function ServiceDetailContent({ service }: { service: (typeof serviceData)[0] })
 
   const currentIndex = getStepIndex(currentStatus);
 
-  const handleUpdateStatus = (e: React.FormEvent) => {
+  const [menyimpan, setMenyimpan] = useState(false);
+
+  /**
+   * Versi sebelumnya hanya menambah satu baris ke state React lalu menampilkan
+   * alert "berhasil diperbarui" — server tidak pernah dihubungi, dan nama
+   * penulisnya ter-hardcode. Sekarang benar-benar memanggil backend, yang juga
+   * menegakkan aturan transisi status (StatusService::canTransitionTo).
+   */
+  const handleUpdateStatus = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentStatus) return;
+    if (!currentStatus || menyimpan) return;
 
-    const newEntry = {
-      id: Date.now(),
-      status: currentStatus,
-      catatan: catatanBaru || 'Perubahan status pengerjaan oleh teknisi.',
-      author: 'Adi Kusumo (Owner & Pegawai)',
-      waktu: new Date().toLocaleString('id-ID'),
-    };
+    setMenyimpan(true);
+    try {
+      const res = await authFetch(`/admin/services/${service.id}/status`, {
+        method: 'POST',
+        body: JSON.stringify({ status: currentStatus, catatan: catatanBaru || null }),
+      });
+      const json = await res.json().catch(() => null);
 
-    setHistory([newEntry, ...history]);
-    setCatatanBaru('');
-    alert(`Status berhasil diperbarui menjadi "${currentStatus}"!`);
+      if (!res.ok) {
+        alert(json?.message ?? 'Gagal memperbarui status servis.');
+        setCurrentStatus(service.status);
+        return;
+      }
+
+      setCatatanBaru('');
+      onTersimpan();
+    } catch {
+      alert('Tidak dapat terhubung ke server.');
+    } finally {
+      setMenyimpan(false);
+    }
   };
 
   const createWhatsAppUpdateLink = () => {
@@ -180,7 +267,7 @@ function ServiceDetailContent({ service }: { service: (typeof serviceData)[0] })
               </div>
               <div className="p-3 bg-neutral-50 rounded-lg border border-neutral-200">
                 <span className="text-neutral-400 block mb-0.5">Teknisi Penanggung Jawab:</span>
-                <span className="font-bold text-neutral-800">{service.teknisi.nama_pegawai}</span>
+                <span className="font-bold text-neutral-800">{service.teknisi?.nama_pegawai ?? 'Belum ditugaskan'}</span>
               </div>
             </div>
 
@@ -314,7 +401,7 @@ function ServiceDetailContent({ service }: { service: (typeof serviceData)[0] })
                       <span className="text-[10px] text-neutral-400 rl-mono">{h.waktu}</span>
                     </div>
                     <p className="text-neutral-600 mb-0">{h.catatan}</p>
-                    <span className="text-[10px] text-neutral-400 block">Oleh: {h.author}</span>
+                    <span className="text-[10px] text-neutral-400 block">Oleh: {penulis(h.pegawai)}</span>
                   </div>
                 </div>
               ))}

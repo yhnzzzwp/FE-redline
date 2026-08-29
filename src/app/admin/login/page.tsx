@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { loginUser } from '@/lib/api';
 import { User, Lock, Eye, EyeOff } from 'lucide-react';
@@ -10,7 +11,6 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
-  const [showTip, setShowTip] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -21,16 +21,12 @@ export default function AdminLoginPage() {
     setLoading(true);
 
     try {
-      const res = await loginUser('admin', username, password);
+      const res = await loginUser('admin', username, password, remember);
 
-      if (res.success && res.token) {
-        const isProd = process.env.NODE_ENV === 'production';
-        const maxAge = remember ? 86400 * 30 : 86400;
-        let cookieString = `admin-token=${res.token}; path=/; max-age=${maxAge}; SameSite=Strict`;
-        if (isProd) {
-          cookieString += '; Secure';
-        }
-        document.cookie = cookieString;
+      if (res.success) {
+        // Tidak ada penanganan token di sini lagi. Route Handler di server
+        // sudah memasang cookie sesi HttpOnly; halaman ini tidak pernah
+        // melihat tokennya, jadi tidak ada yang bisa dicuri lewat XSS.
         router.push('/admin');
       } else {
         setError(res.message || 'Username atau password salah.');
@@ -142,19 +138,15 @@ export default function AdminLoginPage() {
                 <span>Ingat perangkat</span>
               </label>
 
-              <div className="relative text-right">
-                <button
-                  type="button"
-                  onClick={() => setShowTip(!showTip)}
-                  className="text-[#de1f26] hover:text-[#b01218] font-semibold bg-transparent border-0 p-0 cursor-pointer text-xs"
+              <div className="text-right">
+                {/* Sebelumnya hanya tooltip statis. Kini menuju alur yang
+                    benar-benar mencatat permintaan di server. */}
+                <Link
+                  href="/lupa-password"
+                  className="text-[#de1f26] hover:text-[#b01218] font-semibold text-xs no-underline"
                 >
                   Lupa Password?
-                </button>
-                {showTip && (
-                  <div className="absolute right-0 top-6 z-20 w-56 p-2.5 bg-neutral-900 text-white rounded-lg text-[11px] leading-snug shadow-xl text-left border border-neutral-700">
-                    Hubungi pengelola sistem untuk reset password Owner.
-                  </div>
-                )}
+                </Link>
               </div>
             </div>
 

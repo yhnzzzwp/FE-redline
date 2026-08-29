@@ -2,7 +2,7 @@
 
 import { use } from 'react';
 import Link from 'next/link';
-import transaksiData from '@/data/transaksi.json';
+import { useApiData } from '@/lib/useApiData';
 import { Download, Printer, CheckCircle, ArrowLeft } from 'lucide-react';
 import { downloadReceiptPDF, type ReceiptData } from '@/lib/pdfReceipt';
 
@@ -15,51 +15,77 @@ export default function NotaPublikPage({
 }) {
   const { kode } = use(params);
 
-  // Search in static transactions dataset or construct fallback
-  const found = transaksiData.find(
-    (t) => t.kode_nota === kode || t.kode_nota.endsWith(kode)
-  );
+  // Diambil dari endpoint publik /nota/{kode} yang datanya sudah disamarkan
+  // di server. Sebelumnya halaman ini meng-import src/data/transaksi.json,
+  // sehingga nama dan nomor telepon SELURUH pembeli ikut terkirim ke bundle
+  // JavaScript setiap pengunjung situs.
+  const { data, loading, error } = useApiData<{
+    kode_nota: string;
+    nama_pembeli: string | null;
+    metode_bayar: string;
+    subtotal: number;
+    diskon: number;
+    total: number;
+    bayar: number;
+    kembalian: number;
+    created_at: string | null;
+    items: { nama_item: string; jumlah: number; harga: number; subtotal: number; tipe: string }[];
+  }>(`/nota/${encodeURIComponent(kode)}`, (json) => json.data as never);
 
-  const fallbackData: ReceiptData = found
+  const receipt: ReceiptData | null = data
     ? {
-        kode_nota: found.kode_nota,
-        tanggal: found.created_at,
-        nama_pembeli: found.nama_pembeli,
-        nomor_hp: found.nomor_hp_pembeli,
-        items: found.items.map((i) => ({
+        kode_nota: data.kode_nota,
+        tanggal: data.created_at ?? '—',
+        nama_pembeli: data.nama_pembeli ?? 'Pelanggan',
+        items: data.items.map((i) => ({
           nama_item: i.nama_item,
           harga: i.harga,
           jumlah: i.jumlah,
           tipe: i.tipe,
         })),
-        subtotal: found.total,
-        total: found.total,
-        bayar: found.total,
-        kembalian: 0,
-        metode_bayar: found.metode_bayar,
-        kasir: found.pegawai.nama_pegawai,
+        subtotal: data.subtotal,
+        total: data.total,
+        bayar: data.bayar,
+        kembalian: data.kembalian,
+        metode_bayar: data.metode_bayar,
+        kasir: 'Redline Komputer',
       }
-    : {
-        kode_nota: kode,
-        tanggal: new Date().toLocaleDateString('id-ID'),
-        nama_pembeli: 'Pelanggan Redline',
-        items: [
-          {
-            nama_item: 'Transaksi Pembelian / Servis Hardware',
-            harga: 150000,
-            jumlah: 1,
-          },
-        ],
-        subtotal: 150000,
-        total: 150000,
-        bayar: 150000,
-        kembalian: 0,
-        metode_bayar: 'QRIS / Tunai',
-        kasir: 'Kasir Redline',
-      };
+    : null;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-neutral-100/70 py-8 px-4 flex items-center justify-center">
+        <p className="text-xs text-neutral-500">Memuat nota&hellip;</p>
+      </div>
+    );
+  }
+
+  if (error || !receipt) {
+    return (
+      <div className="min-h-screen bg-neutral-100/70 py-8 px-4 flex flex-col items-center justify-center">
+        <div className="w-full max-w-md text-center space-y-3">
+          <span className="rl-logo text-xl text-[#de1f26]">REDL<i>INE</i></span>
+          <h1 className="font-bold text-sm uppercase tracking-wider text-neutral-900">
+            Nota tidak ditemukan
+          </h1>
+          <p className="text-xs text-neutral-500">
+            Kode nota <span className="font-mono font-semibold">{kode}</span> tidak terdaftar.
+            Periksa kembali kode pada struk Anda.
+          </p>
+          <Link
+            href="/"
+            className="text-xs font-semibold text-neutral-500 hover:text-neutral-900 inline-flex items-center gap-1 no-underline"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Kembali ke Beranda</span>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const handleDownload = () => {
-    downloadReceiptPDF(fallbackData);
+    downloadReceiptPDF(receipt);
   };
 
   const handlePrint = () => {
@@ -98,19 +124,19 @@ export default function NotaPublikPage({
           <div className="space-y-1 text-xs text-neutral-600 font-mono">
             <div className="flex justify-between">
               <span>No. Nota:</span>
-              <span className="font-bold text-[#b01218]">#{fallbackData.kode_nota}</span>
+              <span className="font-bold text-[#b01218]">#{receipt.kode_nota}</span>
             </div>
             <div className="flex justify-between">
               <span>Tanggal:</span>
-              <span>{fallbackData.tanggal}</span>
+              <span>{receipt.tanggal}</span>
             </div>
             <div className="flex justify-between">
               <span>Pelanggan:</span>
-              <span className="font-semibold text-neutral-800">{fallbackData.nama_pembeli}</span>
+              <span className="font-semibold text-neutral-800">{receipt.nama_pembeli}</span>
             </div>
             <div className="flex justify-between">
               <span>Kasir:</span>
-              <span>{fallbackData.kasir}</span>
+              <span>{receipt.kasir}</span>
             </div>
           </div>
 
@@ -118,7 +144,7 @@ export default function NotaPublikPage({
             <div className="text-[10px] font-bold uppercase text-neutral-400 tracking-wider">
               Rincian Item Pembelian
             </div>
-            {fallbackData.items.map((item, idx) => (
+            {receipt.items.map((item, idx) => (
               <div key={idx} className="flex justify-between items-start gap-2">
                 <div className="flex-1">
                   <div className="font-bold text-neutral-900">{item.nama_item}</div>
@@ -136,21 +162,21 @@ export default function NotaPublikPage({
           <div className="space-y-1.5 text-xs font-mono">
             <div className="flex justify-between text-sm font-bold text-neutral-900">
               <span>TOTAL TAGIHAN</span>
-              <span className="text-[#b01218]">Rp {fallbackData.total.toLocaleString('id-ID')}</span>
+              <span className="text-[#b01218]">Rp {receipt.total.toLocaleString('id-ID')}</span>
             </div>
             <div className="flex justify-between text-neutral-500">
               <span>Metode Pembayaran</span>
-              <span>{fallbackData.metode_bayar}</span>
+              <span>{receipt.metode_bayar}</span>
             </div>
-            {fallbackData.metode_bayar === 'Tunai' && (
+            {receipt.metode_bayar === 'Tunai' && (
               <>
                 <div className="flex justify-between text-neutral-500">
                   <span>Tunai Diterima</span>
-                  <span>Rp {fallbackData.bayar.toLocaleString('id-ID')}</span>
+                  <span>Rp {receipt.bayar.toLocaleString('id-ID')}</span>
                 </div>
                 <div className="flex justify-between font-bold text-emerald-600">
                   <span>Kembalian</span>
-                  <span>Rp {fallbackData.kembalian.toLocaleString('id-ID')}</span>
+                  <span>Rp {receipt.kembalian.toLocaleString('id-ID')}</span>
                 </div>
               </>
             )}

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import transaksiData from '@/data/transaksi.json';
+import { useApiData, daftar } from '@/lib/useApiData';
+import { selCsv } from '@/lib/csv';
 import { useConnection } from '@/lib/connection';
 import { Search, Download, Receipt, Share2, X, WifiOff } from 'lucide-react';
 import { downloadReceiptPDF, shareReceiptPDFToWhatsApp, type ReceiptData } from '@/lib/pdfReceipt';
@@ -20,7 +21,11 @@ interface TransaksiRecord {
   kode_nota: string;
   nama_pembeli: string;
   nomor_hp_pembeli?: string;
-  pegawai: { id: number; nama_pegawai: string; username: string };
+  // Backend mengirim kunci "kasir" berisi {id, nama} — bukan "pegawai".
+  // Sebelumnya ditipe keliru sebagai pegawai.nama_pegawai, sehingga halaman
+  // ini crash dengan "Cannot read properties of undefined" pada filter yang
+  // jalan di setiap render.
+  kasir: { id: number; nama: string } | null;
   metode_bayar: string;
   subtotal: number;
   diskon: number;
@@ -34,7 +39,14 @@ interface TransaksiRecord {
 
 export default function AdminTransaksiPage() {
   const { isOnline } = useConnection();
-  const [transactions] = useState<TransaksiRecord[]>(transaksiData);
+  // Diambil dari backend, bukan lagi dari src/data/transaksi.json — fixture
+  // itu berisi nama dan nomor telepon pembeli dan ikut terkirim ke bundle
+  // JavaScript setiap pengunjung.
+  const { data, loading, error } = useApiData<TransaksiRecord[]>(
+    '/admin/transaksi?per_page=100',
+    (json) => daftar<TransaksiRecord>(json)
+  );
+  const transactions = data ?? [];
   const [cari, setCari] = useState('');
   const [selectedJenis, setSelectedJenis] = useState('');
   const [selectedTanggal, setSelectedTanggal] = useState('');
@@ -46,7 +58,7 @@ export default function AdminTransaksiPage() {
     const matchSearch =
       t.kode_nota.toLowerCase().includes(cari.toLowerCase()) ||
       t.nama_pembeli.toLowerCase().includes(cari.toLowerCase()) ||
-      t.pegawai.nama_pegawai.toLowerCase().includes(cari.toLowerCase());
+      (t.kasir?.nama ?? '').toLowerCase().includes(cari.toLowerCase());
 
     const matchTanggal = selectedTanggal
       ? t.created_at.startsWith(selectedTanggal)
@@ -71,17 +83,19 @@ export default function AdminTransaksiPage() {
 
     filtered.forEach((t) => {
       const itemsStr = t.items.map((i) => `${i.jumlah}x ${i.nama_item}`).join('; ');
+      // selCsv menetralkan sel yang diawali = + - @ agar nama pembeli, kasir,
+      // atau nama item tidak menjadi formula hidup saat berkas dibuka.
       rows.push([
         t.id.toString(),
-        `"#${t.kode_nota}"`,
-        `"${t.created_at}"`,
-        `"${t.nama_pembeli}"`,
-        `"${t.nomor_hp_pembeli || ''}"`,
-        `"${t.pegawai.nama_pegawai}"`,
-        t.metode_bayar,
+        selCsv(`#${t.kode_nota}`),
+        selCsv(t.created_at),
+        selCsv(t.nama_pembeli),
+        selCsv(t.nomor_hp_pembeli || ''),
+        selCsv(t.kasir?.nama ?? '-'),
+        selCsv(t.metode_bayar),
         t.total.toString(),
-        t.status,
-        `"${itemsStr}"`,
+        selCsv(t.status),
+        selCsv(itemsStr),
       ]);
     });
 
@@ -110,11 +124,21 @@ export default function AdminTransaksiPage() {
     bayar: t.bayar,
     kembalian: t.kembalian,
     metode_bayar: t.metode_bayar,
-    kasir: t.pegawai.nama_pegawai,
+    kasir: t.kasir?.nama ?? '-',
   });
 
   return (
     <div className="space-y-6">
+      {loading && (
+        <div className="p-3 bg-neutral-50 border border-neutral-200 rounded-xl text-xs text-neutral-500">
+          Memuat data transaksi dari server&hellip;
+        </div>
+      )}
+      {error && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800">
+          {error}
+        </div>
+      )}
       <div className="rl-page-header flex items-start justify-between flex-wrap gap-3">
         <div>
           <h1 className="rl-page-title mb-1">Daftar Transaksi</h1>
@@ -244,7 +268,7 @@ export default function AdminTransaksiPage() {
                       </div>
                     </td>
                     <td className="py-3 px-4">
-                      <span className="font-medium text-neutral-800">{t.pegawai.nama_pegawai}</span>
+                      <span className="font-medium text-neutral-800">{t.kasir?.nama ?? '-'}</span>
                     </td>
                     <td className="py-3 px-4">
                       <div className="space-y-0.5 max-w-xs">
