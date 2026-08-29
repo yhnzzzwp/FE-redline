@@ -3,17 +3,30 @@ import { authFetch } from './api';
 import type { TransaksiPending } from './db';
 
 // ─── Types ─────────────────────────────────────────────────────────
-interface SyncResultItem {
+/**
+ * Bentuk respons /pos/sync sesuai ApiPosController::sync di backend.
+ *
+ * Versi sebelumnya membaca `json.results`, kunci yang TIDAK pernah dikirim
+ * server. Akibatnya kode jatuh ke cabang `status === 'success'` dan menandai
+ * SEMUA transaksi sebagai tersinkron tanpa memeriksa satu pun hasil per-item —
+ * termasuk yang sebenarnya ditolak server.
+ */
+interface SyncedItem {
   local_id: string;
-  status: 'synced' | 'conflict';
   kode_nota?: string;
-  server_id?: number;
-  reason?: string;
+  status: 'synced' | 'already_synced';
+}
+
+interface ErrorItem {
+  index: number;
+  local_id: string | null;
+  errors: string[];
 }
 
 interface SyncResponse {
   status: 'success' | 'partial' | 'error';
-  results?: SyncResultItem[];
+  synced?: SyncedItem[];
+  errors?: ErrorItem[];
   message?: string;
 }
 
@@ -81,24 +94,24 @@ export async function syncPendingTransactions(): Promise<SyncReport> {
 
     const json: SyncResponse = await res.json();
 
-    if (json.results && Array.isArray(json.results)) {
-      for (const item of json.results) {
-        if (item.status === 'synced') {
-          await markAsSynced(item.local_id, item.kode_nota, item.server_id);
-          report.synced++;
-        } else if (item.status === 'conflict') {
-          await markAsConflict(item.local_id, item.reason || 'Conflict dari server');
-          report.conflicts++;
-        }
+    for (const item of json.synced ?? []) {
+      await markAsSynced(item.local_id, item.kode_nota);
+      report.synced++;
+    }
+
+    for (const item of json.errors ?? []) {
+      if (!item.local_id) {
+        report.errors.push(item.errors.join('; '));
+        continue;
       }
-    } else if (json.status === 'success') {
-      // Server tidak mengembalikan per-item results — tandai semua sebagai synced
-      for (const tx of pending) {
-        await markAsSynced(tx.localId);
-        report.synced++;
-      }
-    } else {
-      report.errors.push(json.message || 'Response tidak dikenali dari server');
+      // Ditandai conflict, BUKAN synced: transaksinya tetap tersimpan lokal
+      // supaya tidak ada penjualan yang hilang diam-diam.
+      await markAsConflict(item.local_id, item.errors.join('; '));
+      report.conflicts++;
+    }
+
+    if ((json.synced ?? []).length === 0 && (json.errors ?? []).length === 0) {
+      report.errors.push(json.message || 'Server tidak mengembalikan hasil sinkronisasi.');
     }
   } catch (err) {
     report.errors.push(
