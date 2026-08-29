@@ -1503,3 +1503,61 @@ a.rl-card:hover,
     padding: 16px 16px calc(84px + env(safe-area-inset-bottom, 0px));
   }
 }
+
+/* ---- Stiker QR unit servis ---- */
+.rl-stiker {
+  background: #fff;
+  color: #000;
+  text-align: center;
+  padding: 4mm;
+}
+
+.rl-stiker__qr {
+  width: 34mm;
+  height: 34mm;
+  display: block;
+  margin: 0 auto 2mm;
+  image-rendering: pixelated; /* jaga ketajaman modul QR saat diperbesar printer */
+}
+
+.rl-stiker__unit {
+  font-family: var(--font-display);
+  font-size: 9pt;
+  font-weight: 700;
+  line-height: 1.25;
+  margin: 0;
+  word-break: break-word;
+}
+
+/*
+ * Mencetak stiker tanpa membawa serta seluruh panel admin.
+ *
+ * Memakai visibility, bukan display:none, supaya tata letak induknya tidak
+ * runtuh dan posisi absolut di bawah tetap terhitung benar. Model printer
+ * belum ditentukan, jadi ukuran dipatok dalam milimeter agar hasilnya sama
+ * di label thermal maupun kertas A4 yang lalu digunting.
+ */
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+
+  .rl-print-area,
+  .rl-print-area * {
+    visibility: visible !important;
+  }
+
+  .rl-print-area {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+  }
+
+  .rl-tanpa-cetak {
+    display: none !important;
+  }
+
+  @page {
+    margin: 6mm;
+  }
+}

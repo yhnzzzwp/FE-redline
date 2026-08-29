@@ -7,6 +7,7 @@ import { logoutUser } from '@/lib/api';
 import { SessionProvider, useSession, inisial } from '@/lib/session';
 import {
   Server,
+  ScanLine,
   Menu,
   X,
   LayoutDashboard,
@@ -28,6 +29,7 @@ const NAV_ITEMS = [
   { key: 'produk', label: 'Produk', href: '/admin/produk', icon: Package },
   { key: 'transaksi', label: 'Transaksi', href: '/admin/transaksi', icon: Receipt },
   { key: 'service', label: 'Servis', href: '/admin/service', icon: Wrench },
+  { key: 'pindai', label: 'Pindai Unit', href: '/admin/pindai', icon: ScanLine },
   // Dua menu ini hanya untuk Owner — cocok dengan grup 'owner.api' di
   // routes/api.php pada backend, yang tetap menjadi penegak sebenarnya.
   { key: 'promo', label: 'Promo', href: '/admin/promo', icon: Tag, ownerOnly: true },

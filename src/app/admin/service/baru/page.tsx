@@ -1,20 +1,28 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Check, ClipboardCopy, Loader2, Plus, Receipt } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { ArrowLeft, Check, ClipboardCopy, Laptop, Loader2, Plus, QrCode, Receipt } from 'lucide-react';
 import { authFetch } from '@/lib/api';
-import { useApiData, daftar } from '@/lib/useApiData';
+import { useApiData } from '@/lib/useApiData';
+import StikerQr from '@/components/ui/StikerQr';
 
-interface Pegawai {
+interface UnitTerdaftar {
   id: number;
-  nama_pegawai: string;
-  masih_bekerja: boolean;
+  kode_perangkat: string;
+  nama_customer: string;
+  nomor_hp_customer: string | null;
+  merk_model: string;
+  serial_number: string | null;
 }
 
 interface Tersimpan {
   id: number;
   nomor_resi: string;
+  kode_perangkat: string | null;
+  merk_model: string;
+  unitBaru: boolean;
 }
 
 const FORM_KOSONG = {
@@ -23,53 +31,36 @@ const FORM_KOSONG = {
   merk_model: '',
   serial_number: '',
   keluhan: '',
-  biaya_service: '',
-  estimasi_selesai: '',
-  teknisi_id: '',
 };
-
-/** Tanggal n hari dari hari ini dalam format YYYY-MM-DD zona waktu setempat. */
-function tanggalPlus(hari: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + hari);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function rupiah(nilai: number): string {
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    maximumFractionDigits: 0,
-  }).format(nilai);
-}
-
-const PILIHAN_ESTIMASI = [
-  { label: 'Hari ini', hari: 0 },
-  { label: 'Besok', hari: 1 },
-  { label: '3 hari', hari: 3 },
-  { label: '1 minggu', hari: 7 },
-];
 
 /**
  * Terima servis baru.
  *
- * Layar ini sebelumnya tidak ada: /admin/service hanya bisa menampilkan daftar
- * dan detail, sedangkan portal Blade mensyaratkan perangkat yang sudah
- * terdaftar tanpa menyediakan layar untuk mendaftarkannya. Pelanggan baru
- * karena itu hanya bisa dilayani lewat pemanggilan API manual.
+ * Dua jalur masuk:
  *
- * Endpoint POST /admin/services sudah mendukungnya: bila perangkat_id
- * dikosongkan, perangkat dibuat dari data pelanggan pada formulir yang sama.
- * Satu formulir untuk satu kedatangan pelanggan, sesuai kenyataan di konter.
+ *  - Unit baru: identitas pelanggan diketik sekali di sini, lalu stikernya
+ *    dicetak dan ditempel. Kunjungan berikutnya tidak perlu mengetik lagi.
+ *  - Unit terdaftar (?perangkat=KODE, biasanya hasil pindai stiker): identitas
+ *    sudah diketahui, petugas cukup mencatat keluhan.
+ *
+ * Estimasi biaya, teknisi, dan estimasi selesai sengaja TIDAK ditanyakan di
+ * sini. Ketiganya baru bisa dijawab setelah unit dibongkar, jadi tempatnya di
+ * halaman detail tiket — bukan di meja penerimaan saat pelanggan menunggu.
  */
 export default function TambahServicePage() {
-  const { data: pegawaiData } = useApiData<Pegawai[]>(
-    '/admin/pegawai?per_page=100',
-    (json) => daftar<Pegawai>(json)
+  return (
+    <Suspense fallback={<div className="p-3 text-xs text-neutral-500">Memuat…</div>}>
+      <IsiHalaman />
+    </Suspense>
   );
-  const teknisi = useMemo(
-    () => (pegawaiData ?? []).filter((p) => p.masih_bekerja),
-    [pegawaiData]
+}
+
+function IsiHalaman() {
+  const kodeUnit = useSearchParams().get('perangkat');
+
+  const { data: unit, error: galatUnit } = useApiData<UnitTerdaftar | null>(
+    kodeUnit ? `/admin/perangkat/kode/${encodeURIComponent(kodeUnit)}` : '',
+    (json) => (json.data as UnitTerdaftar) ?? null
   );
 
   const [form, setForm] = useState(FORM_KOSONG);
@@ -78,15 +69,12 @@ export default function TambahServicePage() {
   const [errorField, setErrorField] = useState<Record<string, string[]>>({});
   const [tersimpan, setTersimpan] = useState<Tersimpan | null>(null);
   const [tersalin, setTersalin] = useState(false);
+  const [stikerTerbuka, setStikerTerbuka] = useState(false);
 
   const ubah =
     (key: keyof typeof FORM_KOSONG) =>
-    (
-      e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-    ) => {
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       setForm((f) => ({ ...f, [key]: e.target.value }));
-      // Pesan galat per-field ikut hilang begitu kolomnya disunting, supaya
-      // tidak menuduh masukan yang sudah diperbaiki.
       setErrorField((prev) => (prev[key] ? { ...prev, [key]: [] } : prev));
     };
 
@@ -102,15 +90,17 @@ export default function TambahServicePage() {
       // Kolom kosong dibuang, bukan dikirim sebagai string kosong: validator
       // Laravel menolak '' untuk aturan integer dan date.
       const payload: Record<string, string | number> = {
-        nama_customer: form.nama_customer.trim(),
-        merk_model: form.merk_model.trim(),
         keluhan: form.keluhan.trim(),
       };
-      if (form.nomor_hp_customer.trim()) payload.nomor_hp_customer = form.nomor_hp_customer.trim();
-      if (form.serial_number.trim()) payload.serial_number = form.serial_number.trim();
-      if (form.biaya_service !== '') payload.biaya_service = Number(form.biaya_service);
-      if (form.estimasi_selesai) payload.estimasi_selesai = form.estimasi_selesai;
-      if (form.teknisi_id) payload.teknisi_id = Number(form.teknisi_id);
+
+      if (unit) {
+        payload.perangkat_id = unit.id;
+      } else {
+        payload.nama_customer = form.nama_customer.trim();
+        payload.merk_model = form.merk_model.trim();
+        if (form.nomor_hp_customer.trim()) payload.nomor_hp_customer = form.nomor_hp_customer.trim();
+        if (form.serial_number.trim()) payload.serial_number = form.serial_number.trim();
+      }
 
       const res = await authFetch('/admin/services', {
         method: 'POST',
@@ -129,9 +119,15 @@ export default function TambahServicePage() {
         return;
       }
 
-      // Sengaja tidak langsung dialihkan: nomor resi harus terbaca dulu untuk
-      // didiktekan atau ditulis di nota tanda terima pelanggan.
-      setTersimpan({ id: json?.data?.id, nomor_resi: json?.data?.nomor_resi });
+      // Tidak langsung dialihkan: nomor resi harus terbaca untuk didiktekan,
+      // dan unit baru perlu langsung dicetak stikernya selagi laptopnya ada.
+      setTersimpan({
+        id: json?.data?.id,
+        nomor_resi: json?.data?.nomor_resi,
+        kode_perangkat: json?.data?.perangkat?.kode_perangkat ?? null,
+        merk_model: json?.data?.perangkat?.merk_model ?? form.merk_model,
+        unitBaru: !unit,
+      });
       setForm(FORM_KOSONG);
     } catch {
       setPesanError('Server tidak dapat dihubungi. Periksa koneksi lalu coba lagi.');
@@ -151,14 +147,16 @@ export default function TambahServicePage() {
     }
   };
 
-  // ─── Layar sesudah tersimpan ────────────────────────────────────
+  // ─── Sesudah tersimpan ──────────────────────────────────────────
   if (tersimpan) {
     return (
       <div className="space-y-4">
         <div className="rl-page-header">
           <h1 className="rl-page-title mb-1">Tiket Servis Dibuat</h1>
           <p className="rl-page-desc mb-0">
-            Berikan nomor resi ini kepada pelanggan untuk melacak servisnya.
+            {tersimpan.unitBaru
+              ? 'Cetak stikernya sekarang selagi unitnya masih di meja.'
+              : 'Berikan nomor resi ini kepada pelanggan.'}
           </p>
         </div>
 
@@ -173,6 +171,15 @@ export default function TambahServicePage() {
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-2">
+            {tersimpan.kode_perangkat && (
+              <button
+                type="button"
+                onClick={() => setStikerTerbuka(true)}
+                className="btn-redline rl-btn-sm inline-flex items-center gap-1.5 cursor-pointer"
+              >
+                <QrCode className="w-3.5 h-3.5" /> Cetak stiker QR
+              </button>
+            )}
             <button
               type="button"
               onClick={salinResi}
@@ -189,29 +196,27 @@ export default function TambahServicePage() {
                 <Receipt className="w-3.5 h-3.5" /> Buka tiket
               </Link>
             )}
-            <button
-              type="button"
-              onClick={() => setTersimpan(null)}
-              className="btn-redline rl-btn-sm inline-flex items-center gap-1.5 cursor-pointer"
+            <Link
+              href="/admin/service/baru"
+              className="btn-ghost rl-btn-sm inline-flex items-center gap-1.5 no-underline"
             >
-              <Plus className="w-3.5 h-3.5" /> Terima servis lagi
-            </button>
+              <Plus className="w-3.5 h-3.5" /> Servis lagi
+            </Link>
           </div>
         </div>
 
-        <Link
-          href="/admin/service"
-          className="inline-flex items-center gap-1.5 text-xs text-neutral-500 hover:text-neutral-800 no-underline"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" /> Kembali ke daftar servis
-        </Link>
+        {stikerTerbuka && tersimpan.kode_perangkat && (
+          <StikerQr
+            kode={tersimpan.kode_perangkat}
+            merkModel={tersimpan.merk_model}
+            onTutup={() => setStikerTerbuka(false)}
+          />
+        )}
       </div>
     );
   }
 
   // ─── Formulir ───────────────────────────────────────────────────
-  const biaya = form.biaya_service === '' ? null : Number(form.biaya_service);
-
   return (
     <div className="space-y-4">
       <div className="rl-page-header">
@@ -227,190 +232,110 @@ export default function TambahServicePage() {
         </p>
       </div>
 
+      {kodeUnit && galatUnit && (
+        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900">
+          Unit <span className="rl-mono">{kodeUnit}</span> tidak ditemukan — isi datanya sebagai unit baru.
+        </div>
+      )}
+
       {pesanError && (
         <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800">
           {pesanError}
         </div>
       )}
 
-      <form onSubmit={kirim} className="grid gap-4 lg:grid-cols-3 items-start">
-        <div className="lg:col-span-2 space-y-4">
-          <section className="rl-card p-5">
-            <Judul nomor={1} teks="Pelanggan & Perangkat" />
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Kolom label="Nama pelanggan" wajib galat={galat('nama_customer')}>
-                <input
-                  required
-                  value={form.nama_customer}
-                  onChange={ubah('nama_customer')}
-                  placeholder="Budi Santoso"
-                  className="rl-input"
-                  aria-invalid={Boolean(galat('nama_customer'))}
-                />
-              </Kolom>
-
-              <Kolom
-                label="Nomor WhatsApp"
-                galat={galat('nomor_hp_customer')}
-                bantuan="Dipakai untuk mengabari saat servis selesai."
-              >
-                <input
-                  inputMode="tel"
-                  value={form.nomor_hp_customer}
-                  onChange={ubah('nomor_hp_customer')}
-                  placeholder="08123456789"
-                  className="rl-input"
-                />
-              </Kolom>
-
-              <Kolom label="Merk / model perangkat" wajib galat={galat('merk_model')}>
-                <input
-                  required
-                  value={form.merk_model}
-                  onChange={ubah('merk_model')}
-                  placeholder="Asus TUF Gaming A15"
-                  className="rl-input"
-                  aria-invalid={Boolean(galat('merk_model'))}
-                />
-              </Kolom>
-
-              <Kolom label="Serial number" galat={galat('serial_number')} bantuan="Opsional.">
-                <input
-                  value={form.serial_number}
-                  onChange={ubah('serial_number')}
-                  placeholder="S/N pada stiker bawah perangkat"
-                  className="rl-input"
-                />
-              </Kolom>
+      <form onSubmit={kirim} className="rl-card p-5 space-y-4 max-w-2xl">
+        {unit ? (
+          // Unit dikenali dari stiker: identitasnya tidak diketik ulang.
+          <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+            <div className="flex items-center gap-2 mb-2.5">
+              <Laptop className="w-4 h-4 text-neutral-400" />
+              <span className="text-xs font-bold text-neutral-900">Unit terdaftar</span>
+              <span className="rl-mono text-[11px] text-neutral-400">{unit.kode_perangkat}</span>
             </div>
-          </section>
-
-          <section className="rl-card p-5">
-            <Judul nomor={2} teks="Keluhan & Estimasi" />
-
-            <Kolom label="Keluhan pelanggan" wajib galat={galat('keluhan')}>
-              <textarea
+            <p className="text-xs text-neutral-800 m-0">
+              {unit.nama_customer}
+              {unit.nomor_hp_customer ? ` · ${unit.nomor_hp_customer}` : ''}
+            </p>
+            <p className="text-xs text-neutral-500 m-0 mt-0.5">
+              {unit.merk_model}
+              {unit.serial_number ? ` · S/N ${unit.serial_number}` : ''}
+            </p>
+            <Link
+              href={`/admin/perangkat/${encodeURIComponent(unit.kode_perangkat)}`}
+              className="text-[11px] text-[#b01218] no-underline inline-block mt-2"
+            >
+              Lihat riwayat servis unit ini →
+            </Link>
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Kolom label="Nama pelanggan" wajib galat={galat('nama_customer')}>
+              <input
                 required
-                rows={3}
-                value={form.keluhan}
-                onChange={ubah('keluhan')}
-                placeholder="Mati total setelah kena air, tidak menyala sama sekali."
-                className="rl-textarea"
-                aria-invalid={Boolean(galat('keluhan'))}
+                value={form.nama_customer}
+                onChange={ubah('nama_customer')}
+                placeholder="Budi Santoso"
+                className="rl-input"
               />
             </Kolom>
 
-            <div className="grid gap-4 sm:grid-cols-2 mt-4">
-              <Kolom
-                label="Estimasi biaya"
-                galat={galat('biaya_service')}
-                bantuan={biaya !== null && biaya > 0 ? rupiah(biaya) : 'Boleh dikosongkan dulu.'}
-              >
-                <input
-                  type="number"
-                  min={0}
-                  step={1000}
-                  value={form.biaya_service}
-                  onChange={ubah('biaya_service')}
-                  placeholder="150000"
-                  className="rl-input"
-                />
-              </Kolom>
+            <Kolom label="Nomor WhatsApp" galat={galat('nomor_hp_customer')}>
+              <input
+                inputMode="tel"
+                value={form.nomor_hp_customer}
+                onChange={ubah('nomor_hp_customer')}
+                placeholder="08123456789"
+                className="rl-input"
+              />
+            </Kolom>
 
-              <Kolom label="Teknisi" galat={galat('teknisi_id')} bantuan="Bisa ditentukan nanti.">
-                <select value={form.teknisi_id} onChange={ubah('teknisi_id')} className="rl-select">
-                  <option value="">— Belum ditentukan —</option>
-                  {teknisi.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.nama_pegawai}
-                    </option>
-                  ))}
-                </select>
-              </Kolom>
-            </div>
+            <Kolom label="Merk / model" wajib galat={galat('merk_model')}>
+              <input
+                required
+                value={form.merk_model}
+                onChange={ubah('merk_model')}
+                placeholder="Asus TUF Gaming A15"
+                className="rl-input"
+              />
+            </Kolom>
 
-            <div className="mt-4">
-              <Kolom label="Estimasi selesai" galat={galat('estimasi_selesai')}>
-                <input
-                  type="date"
-                  value={form.estimasi_selesai}
-                  onChange={ubah('estimasi_selesai')}
-                  className="rl-input"
-                />
-              </Kolom>
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {PILIHAN_ESTIMASI.map((p) => {
-                  const nilai = tanggalPlus(p.hari);
-                  const aktif = form.estimasi_selesai === nilai;
-                  return (
-                    <button
-                      key={p.label}
-                      type="button"
-                      onClick={() => setForm((f) => ({ ...f, estimasi_selesai: nilai }))}
-                      className={`px-2.5 py-1 rounded-lg border text-[11px] font-semibold cursor-pointer transition-colors ${
-                        aktif
-                          ? 'border-[#de1f26] bg-red-50 text-[#b01218]'
-                          : 'border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300'
-                      }`}
-                    >
-                      {p.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </section>
-        </div>
-
-        {/* Ringkasan: dibaca ulang bersama pelanggan sebelum tiket disimpan. */}
-        <aside className="rl-card p-5 lg:sticky lg:top-4">
-          <h2 className="text-xs font-bold text-neutral-800 uppercase tracking-wider mb-3">
-            Ringkasan
-          </h2>
-
-          <dl className="space-y-2.5 text-xs">
-            <Baris label="Pelanggan" nilai={form.nama_customer} />
-            <Baris label="WhatsApp" nilai={form.nomor_hp_customer} />
-            <Baris label="Perangkat" nilai={form.merk_model} />
-            <Baris label="Keluhan" nilai={form.keluhan} />
-            <Baris label="Estimasi biaya" nilai={biaya !== null && biaya > 0 ? rupiah(biaya) : ''} />
-            <Baris label="Estimasi selesai" nilai={form.estimasi_selesai} />
-            <Baris
-              label="Teknisi"
-              nilai={teknisi.find((t) => String(t.id) === form.teknisi_id)?.nama_pegawai ?? ''}
-            />
-          </dl>
-
-          <div className="border-t border-neutral-100 mt-4 pt-4 space-y-2">
-            <button
-              type="submit"
-              disabled={mengirim}
-              className="btn-redline w-full inline-flex items-center justify-center gap-2 text-xs font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {mengirim && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              {mengirim ? 'Menyimpan…' : 'Simpan & Buat Resi'}
-            </button>
-            <Link
-              href="/admin/service"
-              className="btn-ghost w-full inline-flex items-center justify-center text-xs no-underline"
-            >
-              Batal
-            </Link>
+            <Kolom label="Serial number" galat={galat('serial_number')}>
+              <input
+                value={form.serial_number}
+                onChange={ubah('serial_number')}
+                placeholder="S/N pada stiker bawah unit"
+                className="rl-input"
+              />
+            </Kolom>
           </div>
-        </aside>
-      </form>
-    </div>
-  );
-}
+        )}
 
-function Judul({ nomor, teks }: { nomor: number; teks: string }) {
-  return (
-    <div className="flex items-center gap-2.5 mb-4">
-      <span className="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-neutral-900 text-white text-[11px] font-bold shrink-0">
-        {nomor}
-      </span>
-      <h2 className="text-sm font-bold text-neutral-900 m-0">{teks}</h2>
+        <Kolom label="Keluhan pelanggan" wajib galat={galat('keluhan')}>
+          <textarea
+            required
+            rows={4}
+            value={form.keluhan}
+            onChange={ubah('keluhan')}
+            placeholder="Mati total setelah kena air, tidak menyala sama sekali."
+            className="rl-textarea"
+          />
+        </Kolom>
+
+        <div className="flex items-center gap-2 pt-1">
+          <button
+            type="submit"
+            disabled={mengirim}
+            className="btn-redline inline-flex items-center gap-2 text-xs font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {mengirim && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            {mengirim ? 'Menyimpan…' : 'Simpan & Buat Resi'}
+          </button>
+          <Link href="/admin/service" className="btn-ghost text-xs no-underline">
+            Batal
+          </Link>
+        </div>
+      </form>
     </div>
   );
 }
@@ -419,13 +344,11 @@ function Kolom({
   label,
   wajib = false,
   galat = null,
-  bantuan,
   children,
 }: {
   label: string;
   wajib?: boolean;
   galat?: string | null;
-  bantuan?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -435,22 +358,7 @@ function Kolom({
         {wajib && <span className="text-[#de1f26]"> *</span>}
       </span>
       {children}
-      {galat ? (
-        <span className="block text-[11px] text-red-600 mt-1">{galat}</span>
-      ) : bantuan ? (
-        <span className="block text-[11px] text-neutral-400 mt-1">{bantuan}</span>
-      ) : null}
+      {galat && <span className="block text-[11px] text-red-600 mt-1">{galat}</span>}
     </label>
-  );
-}
-
-function Baris({ label, nilai }: { label: string; nilai: string }) {
-  return (
-    <div className="flex justify-between gap-3">
-      <dt className="text-neutral-400 shrink-0">{label}</dt>
-      <dd className="text-neutral-800 font-medium text-right m-0 break-words min-w-0">
-        {nilai.trim() ? nilai : <span className="text-neutral-300">—</span>}
-      </dd>
-    </div>
   );
 }

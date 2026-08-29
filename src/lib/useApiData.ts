@@ -41,6 +41,16 @@ export function useApiData<T>(
       await Promise.resolve();
       if (dibatalkan) return;
 
+      // Path kosong = pemanggil sedang tidak membutuhkan data (mis. formulir
+      // servis yang hanya memuat unit bila ada ?perangkat= di URL). Tanpa
+      // penjagaan ini, authFetch('') menembak /api/backend dan selalu gagal.
+      if (!path) {
+        setData(null);
+        setError(null);
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError(null);
 
