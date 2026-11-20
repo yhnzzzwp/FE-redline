@@ -1,0 +1,16 @@
+.git
+.github
+node_modules
+.next
+out
+coverage
+.env*
+redline.env
+src/data
+docker-compose.yml
+Dockerfile
+.dockerignore
+AGENTS.md
+CLAUDE.md
+DEPLOY-*.md
+*.tsbuildinfo

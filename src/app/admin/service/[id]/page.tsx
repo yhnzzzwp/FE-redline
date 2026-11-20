@@ -2,8 +2,8 @@
 
 import { use, useState } from 'react';
 import Link from 'next/link';
-import { useApiData } from '@/lib/useApiData';
-import { authFetch } from '@/lib/api';
+import { useApiData } from '@/lib/UseApiData';
+import { authFetch } from '@/lib/apiClient';
 import { MessageCircle, CheckCircle2 } from 'lucide-react';
 
 interface Riwayat {

@@ -2,9 +2,9 @@
 
 import { use } from 'react';
 import Link from 'next/link';
-import { useApiData } from '@/lib/useApiData';
+import { useApiData } from '@/lib/UseApiData';
 import { Download, Printer, CheckCircle, ArrowLeft } from 'lucide-react';
-import { downloadReceiptPDF, type ReceiptData } from '@/lib/pdfReceipt';
+import { downloadReceiptPDF, type ReceiptData } from '@/lib/PdfReceipt';
 
 export const dynamic = 'force-dynamic';
 

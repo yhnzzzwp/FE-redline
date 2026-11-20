@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, type ReactNode } from 'react';
-import { registerServiceWorker } from '@/lib/sw-register';
+import { registerServiceWorker } from '@/lib/swRegister';
 import { ConnectionProvider } from '@/lib/connection';
-import { AutoSync } from '@/lib/AutoSync';
+import { AutoSyncProvider } from '@/lib/AutoSyncProvider';
 
 /**
  * Client-side provider yang membungkus:
@@ -18,7 +18,7 @@ export default function ClientProviders({ children }: { children: ReactNode }) {
 
   return (
     <ConnectionProvider>
-      <AutoSync />
+      <AutoSyncProvider />
       {children}
     </ConnectionProvider>
   );

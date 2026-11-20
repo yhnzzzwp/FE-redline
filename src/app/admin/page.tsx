@@ -1,20 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { useApiData } from '@/lib/useApiData';
+import { useApiData } from '@/lib/UseApiData';
 import { selCsv } from '@/lib/csv';
 import { useConnection } from '@/lib/connection';
 import { WifiOff, Download } from 'lucide-react';
 
-const DUMMY_TREND = [
-  { label: 'Sen', total: 12 },
-  { label: 'Sel', total: 8 },
-  { label: 'Rab', total: 15 },
-  { label: 'Kam', total: 6 },
-  { label: 'Jum', total: 22 },
-  { label: 'Sab', total: 18 },
-  { label: 'Min', total: 4 },
-];
+const LABEL_HARI = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'] as const;
 
 interface TransaksiTerbaru {
   id: number;
@@ -63,9 +55,10 @@ export default function AdminDashboard() {
   const servisAktifCount = data?.servis.aktif ?? 0;
   const totalProdukCount = data?.ringkasan.total_produk ?? 0;
 
-  const currentTrend = isOnline
-    ? DUMMY_TREND
-    : DUMMY_TREND.map((t) => ({ label: t.label, total: 0 }));
+  const currentTrend = LABEL_HARI.map((label) => ({
+    label,
+    total: isOnline ? 0 : 0,
+  }));
 
   const trendMax = Math.max(1, ...currentTrend.map((t) => t.total));
 

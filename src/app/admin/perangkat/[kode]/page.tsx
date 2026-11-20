@@ -11,7 +11,7 @@ import {
   User,
   Wrench,
 } from 'lucide-react';
-import { useApiData } from '@/lib/useApiData';
+import { useApiData } from '@/lib/UseApiData';
 import StikerQr from '@/components/ui/StikerQr';
 
 interface ServisRingkas {

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { loginUser } from '@/lib/api';
+import { loginUser } from '@/lib/apiClient';
 import { User, Lock, Eye, EyeOff } from 'lucide-react';
 
 export default function AdminLoginPage() {

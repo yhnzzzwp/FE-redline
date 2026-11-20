@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
 import { Promo } from '@/types';
 import { Tag, ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -51,17 +50,6 @@ export default function PromoCarousel({ promos }: { promos: Promo[] }) {
           </div>
         </div>
 
-        {current.foto_promo && (
-          <div className="relative w-full md:w-64 h-36 rounded-xl overflow-hidden border border-white/20 bg-black/30 shrink-0">
-            <Image
-              src={current.foto_promo}
-              alt={current.nama_promo}
-              fill
-              className="object-cover"
-              sizes="(max-width: 768px) 100vw, 256px"
-            />
-          </div>
-        )}
       </div>
 
       {promos.length > 1 && (

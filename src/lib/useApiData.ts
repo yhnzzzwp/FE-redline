@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { authFetch } from './api';
+import { authFetch } from './apiClient';
 
 interface Hasil<T> {
   data: T | null;

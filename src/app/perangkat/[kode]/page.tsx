@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { fetchPerangkat } from '@/lib/api';
+import { fetchPerangkat } from '@/lib/apiClient';
 import { createGeneralWhatsAppLink } from '@/lib/whatsapp';
 import { QrCode, Laptop, User, Calendar, Cpu, Wrench, MessageCircle } from 'lucide-react';
 

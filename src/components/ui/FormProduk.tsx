@@ -4,8 +4,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { authFetch } from '@/lib/api';
-import { useApiData } from '@/lib/useApiData';
+import { authFetch } from '@/lib/apiClient';
+import { useApiData } from '@/lib/UseApiData';
 
 export interface Kategori {
   id: number;

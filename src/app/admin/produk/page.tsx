@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Search, Download, X, Plus, Pencil, Trash2, Tags } from 'lucide-react';
-import { useApiData, daftar } from '@/lib/useApiData';
-import { authFetch } from '@/lib/api';
+import { useApiData, daftar } from '@/lib/UseApiData';
+import { authFetch } from '@/lib/apiClient';
 import { useConnection } from '@/lib/connection';
 import type { Produk } from '@/components/ui/FormProduk';
 

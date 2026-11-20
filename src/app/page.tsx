@@ -1,14 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import {
-  dummyKategori,
-  dummyProduk,
-  dummyPromos,
-  fetchKatalog,
-  fetchKategori,
-  fetchPromos,
-} from '@/lib/api';
+import { fetchKatalog, fetchKategori, fetchPromos } from '@/lib/apiClient';
 import { Kategori, Produk, Promo } from '@/types';
 import ProductCard from '@/components/ui/ProductCard';
 import PromoCarousel from '@/components/ui/PromoCarousel';
@@ -17,9 +10,9 @@ import { Filter, ChevronDown } from 'lucide-react';
 
 export default function HomePage() {
   const { isOnline } = useConnection();
-  const [products, setProducts] = useState<Produk[]>(dummyProduk);
-  const [categories, setCategories] = useState<Kategori[]>(dummyKategori);
-  const [promos, setPromos] = useState<Promo[]>(dummyPromos);
+  const [products, setProducts] = useState<Produk[]>([]);
+  const [categories, setCategories] = useState<Kategori[]>([]);
+  const [promos, setPromos] = useState<Promo[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<number | undefined>();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterOpen, setFilterOpen] = useState(false);

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { fetchProdukDetail } from '@/lib/api';
+import { fetchProdukDetail } from '@/lib/apiClient';
 import { createWhatsAppLink } from '@/lib/whatsapp';
 import { Produk } from '@/types';
 import ProductCard from '@/components/ui/ProductCard';

@@ -1,5 +1,5 @@
 import { getPendingTransactions, markAsSynced, markAsConflict } from './storage';
-import { authFetch } from './api';
+import { authFetch } from './apiClient';
 import type { TransaksiPending } from './db';
 
 // ─── Types ─────────────────────────────────────────────────────────

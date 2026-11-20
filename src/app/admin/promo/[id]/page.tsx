@@ -3,8 +3,8 @@
 import { use } from 'react';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-import { OwnerOnly } from '@/lib/session';
-import { useApiData } from '@/lib/useApiData';
+import { OwnerOnly } from '@/lib/SessionContext';
+import { useApiData } from '@/lib/UseApiData';
 import FormPromo, { type Promo } from '@/components/ui/FormPromo';
 
 function Isi({ id }: { id: string }) {

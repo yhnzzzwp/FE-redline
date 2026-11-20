@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { fetchCekServis } from '@/lib/api';
+import { fetchCekServis } from '@/lib/apiClient';
 import { ServiceDetail } from '@/types';
 import ServiceTimeline from '@/components/ui/ServiceTimeline';
 import { createGeneralWhatsAppLink } from '@/lib/whatsapp';

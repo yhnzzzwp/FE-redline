@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { OwnerOnly } from '@/lib/session';
+import { OwnerOnly } from '@/lib/SessionContext';
 import { useConnection } from '@/lib/connection';
-import { useApiData, daftar } from '@/lib/useApiData';
-import { authFetch } from '@/lib/api';
+import { useApiData, daftar } from '@/lib/UseApiData';
+import { authFetch } from '@/lib/apiClient';
 import { Search, X, WifiOff, Plus, Pencil, Power, Trash2 } from 'lucide-react';
 import type { Promo } from '@/components/ui/FormPromo';
 

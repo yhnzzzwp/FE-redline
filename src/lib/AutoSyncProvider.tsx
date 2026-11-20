@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useConnection } from './connection';
-import { syncPendingTransactions } from './sync';
+import { syncPendingTransactions } from './SyncQueue';
 
 /**
  * Menyinkronkan antrean transaksi offline saat koneksi pulih.
@@ -11,7 +11,7 @@ import { syncPendingTransactions } from './sync';
  * seluruh lapisan offline (db.ts, storage.ts, sync.ts) adalah kode mati, dan
  * penjualan yang dibuat saat offline tidak pernah sampai ke server.
  */
-export function AutoSync() {
+export function AutoSyncProvider() {
   const { isOnline } = useConnection();
   const sebelumnya = useRef<boolean | null>(null);
 

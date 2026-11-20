@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useSession } from '@/lib/session';
-import { useApiData } from '@/lib/useApiData';
+import { useSession } from '@/lib/SessionContext';
+import { useApiData } from '@/lib/UseApiData';
 import { savePendingTransaction, countPending } from '@/lib/storage';
-import { syncPendingTransactions } from '@/lib/sync';
+import { syncPendingTransactions } from '@/lib/SyncQueue';
 import {
   ShoppingBag,
   Plus,
@@ -18,7 +18,7 @@ import {
   CloudOff,
 } from 'lucide-react';
 import { useConnection } from '@/lib/connection';
-import { downloadReceiptPDF, shareReceiptPDFToWhatsApp, type ReceiptData } from '@/lib/pdfReceipt';
+import { downloadReceiptPDF, shareReceiptPDFToWhatsApp, type ReceiptData } from '@/lib/PdfReceipt';
 
 interface CartLine {
   id: string;

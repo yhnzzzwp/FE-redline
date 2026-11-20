@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-import { OwnerOnly } from '@/lib/session';
+import { OwnerOnly } from '@/lib/SessionContext';
 import FormPromo from '@/components/ui/FormPromo';
 
 function Isi() {

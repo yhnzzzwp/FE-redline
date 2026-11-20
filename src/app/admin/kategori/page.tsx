@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Check, Loader2, Pencil, Plus, Trash2, X } from 'lucide-react';
-import { useApiData } from '@/lib/useApiData';
-import { authFetch } from '@/lib/api';
+import { useApiData } from '@/lib/UseApiData';
+import { authFetch } from '@/lib/apiClient';
 import { useConnection } from '@/lib/connection';
 
 interface Kategori {

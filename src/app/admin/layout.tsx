@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { logoutUser } from '@/lib/api';
-import { SessionProvider, useSession, inisial } from '@/lib/session';
+import { logoutUser } from '@/lib/apiClient';
+import { SessionProvider, useSession, inisial } from '@/lib/SessionContext';
 import {
   Server,
   ScanLine,

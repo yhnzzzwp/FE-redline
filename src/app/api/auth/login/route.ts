@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { backendBaseUrl, SESSION_COOKIE, opsiCookieSesi } from '@/lib/server/backend';
+import { backendBaseUrl, SESSION_COOKIE, opsiCookieSesi } from '@/lib/server/Backend';
 
 export const dynamic = 'force-dynamic';
 

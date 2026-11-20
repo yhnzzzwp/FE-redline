@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { useConnection } from '@/lib/connection';
-import { authFetch } from '@/lib/api';
-import { useApiData, daftar } from '@/lib/useApiData';
+import { authFetch } from '@/lib/apiClient';
+import { useApiData, daftar } from '@/lib/UseApiData';
 import { Laptop, Smartphone, WifiOff, RefreshCw } from 'lucide-react';
 
 /**

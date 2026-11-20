@@ -3,7 +3,7 @@
 import { use } from 'react';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-import { useApiData } from '@/lib/useApiData';
+import { useApiData } from '@/lib/UseApiData';
 import FormProduk, { type Produk } from '@/components/ui/FormProduk';
 
 export default function UbahProdukPage({ params }: { params: Promise<{ id: string }> }) {

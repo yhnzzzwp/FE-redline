@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { authFetch } from '@/lib/api';
+import { authFetch } from '@/lib/apiClient';
 
 export interface Promo {
   id: number;

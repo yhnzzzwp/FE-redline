@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useApiData, daftar } from '@/lib/useApiData';
+import { useApiData, daftar } from '@/lib/UseApiData';
 import { useConnection } from '@/lib/connection';
 import { Search, ChevronRight, X, WifiOff, Plus } from 'lucide-react';
 
