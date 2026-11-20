@@ -11,7 +11,7 @@ import { cookies } from 'next/headers';
 export const SESSION_COOKIE = 'redline_session';
 
 /**
- * Alamat backend Laravel.
+ * Alamat backend API (Flask / legacy Laravel).
  *
  * SENGAJA tanpa awalan NEXT_PUBLIC_. Variabel tanpa awalan itu tidak
  * di-inline Next.js ke bundle klien, sehingga alamat backend beserta skema

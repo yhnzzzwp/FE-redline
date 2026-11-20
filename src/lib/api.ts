@@ -1,7 +1,7 @@
 import { Kategori, PerangkatDetail, Produk, Promo, ServiceDetail } from '@/types';
 
 /**
- * Di SERVER: langsung ke Laravel memakai API_BASE_URL (variabel server-only,
+ * Di SERVER: langsung ke backend API memakai API_BASE_URL (variabel server-only,
  * tidak ikut ke bundle browser).
  * Di BROWSER: selalu lewat proksi same-origin /api/backend, sehingga alamat
  * backend tidak pernah terpapar dan token tetap di cookie HttpOnly.
